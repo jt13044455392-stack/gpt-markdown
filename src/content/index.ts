@@ -6,7 +6,7 @@ import { setupCopyEventHandler } from "./copy-event-handler";
 import { setupReplyMarkdownCopyButtons } from "./reply-button-injector";
 import "./styles.css";
 
-console.log("[ChatGPT Math Copier] content script loaded");
+console.log("[GPT Markdown] content script loaded");
 
 // ── 场景 A：手动选中内容后按 Ctrl+C 复制（含公式时自动转换）────────────────
 setupCopyEventHandler();
@@ -40,7 +40,7 @@ document.addEventListener(
       await navigator.clipboard.writeText(markdown);
       showToast("已复制", { type: "success", x: event.clientX, y: event.clientY });
     } catch (error) {
-      console.error("[ChatGPT Math Copier] Clipboard write failed:", error);
+      console.error("[GPT Markdown] Clipboard write failed:", error);
       showToast("复制失败", { type: "error", x: event.clientX, y: event.clientY });
     }
   },

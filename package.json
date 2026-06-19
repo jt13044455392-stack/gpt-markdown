@@ -1,5 +1,5 @@
 {
-  "name": "chatgpt-math-markdown-copier",
+  "name": "gpt-markdown",
   "version": "0.1.0",
   "description": "Click math formulas in ChatGPT to copy them as Markdown.",
   "private": true,

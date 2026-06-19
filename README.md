@@ -1,4 +1,4 @@
-# ChatGPT Math Markdown Copier
+# GPT Markdown
 
 一个轻量级浏览器扩展，支持 Microsoft Edge 和 Chrome。
 

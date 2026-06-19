@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ChatGPT Math Markdown Copier",
+  "name": "GPT Markdown",
   "version": "0.1.0",
   "description": "Click math formulas in ChatGPT to copy them as Markdown.",
   "permissions": ["clipboardWrite"],
