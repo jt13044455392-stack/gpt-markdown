@@ -1,0 +1,80 @@
+/* ─── 公式 hover 提示 ────────────────────────────────────────────────────── */
+
+.katex:hover,
+.katex-display:hover,
+.math-inline:hover,
+.math-block:hover,
+mjx-container:hover,
+math:hover {
+  cursor: pointer;
+  outline: 1px dashed rgba(100, 100, 100, 0.5);
+  border-radius: 4px;
+}
+
+/* ─── 「复制为 Markdown」按钮 ────────────────────────────────────────────── */
+
+.cgpt-md-copy-wrapper {
+  display: flex;
+  padding: 4px 0 2px 0;
+}
+
+.cgpt-md-copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #8e8ea0);
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+  vertical-align: middle;
+}
+
+.cgpt-md-copy-button:hover {
+  background: var(--surface-hover, rgba(0, 0, 0, 0.06));
+  color: var(--text-primary, #202123);
+}
+
+.cgpt-md-copy-button:active {
+  opacity: 0.7;
+}
+
+/* ─── Toast 容器 ─────────────────────────────────────────────────────────── */
+
+#chatgpt-math-copier-toast {
+  /* 定位：由 JS 动态设置，跟随鼠标；兜底为右下角 */
+  position: fixed;
+  z-index: 2147483647;
+
+  /* 尺寸与排版 */
+  max-width: 160px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.4;
+  white-space: nowrap;
+
+  /* 过渡动画 */
+  transition: opacity 0.25s ease;
+  pointer-events: none; /* 不拦截鼠标事件 */
+}
+
+/* 成功状态：深色半透明 */
+#chatgpt-math-copier-toast.chatgpt-math-copier-toast--success {
+  background-color: rgba(30, 30, 30, 0.75);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+/* 错误状态：红色半透明 */
+#chatgpt-math-copier-toast.chatgpt-math-copier-toast--error {
+  background-color: rgba(180, 40, 30, 0.80);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(180, 40, 30, 0.25);
+}
