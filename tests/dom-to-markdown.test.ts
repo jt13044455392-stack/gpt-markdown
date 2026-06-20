@@ -39,7 +39,7 @@ describe("convertElementToMarkdown", () => {
       `<p>公式如下：</p><div class="katex-display" data-math="\\int_0^1 x^2 dx"></div>`
     );
     const result = convertElementToMarkdown(root);
-    expect(result).toContain("$$\n\\int_0^1 x^2 dx\n$$");
+    expect(result).toContain("$$\\int_0^1 x^2 dx$$");
   });
 
   it("公式子节点不被重复遍历", () => {

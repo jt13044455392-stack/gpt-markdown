@@ -20,7 +20,7 @@ document.addEventListener(
   async (event) => {
     // 如果点的是插件自己注入的按钮，不处理（按钮自己有 listener）
     const target = event.target;
-    if (target instanceof HTMLElement && target.closest("[data-cgpt-md-copy]")) return;
+    if (target instanceof HTMLElement && target.closest("[data-ai-md-copy]")) return;
 
     const match = findMathElement(event.target);
     if (!match) return;
