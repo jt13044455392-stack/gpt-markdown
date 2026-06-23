@@ -73,6 +73,43 @@ npm test
 
 ---
 
+## Chrome 本地安装测试
+
+1. 安装依赖并构建：
+
+```bash
+npm install
+npm run build
+```
+
+2. 打开 Chrome 扩展管理页面：
+
+```text
+chrome://extensions/
+```
+
+3. 打开右上角「开发者模式」。
+4. 点击「加载已解压的扩展程序」。
+5. 选择项目生成的 `dist/` 目录。
+6. 打开以下网页测试：
+
+```text
+https://chatgpt.com/
+https://claude.ai/
+```
+
+7. 验证：
+
+- 回复下面出现「复制为 Markdown」按钮
+- 点击按钮后可以复制整条回复
+- 行内公式输出为 `$...$`
+- 块级公式输出为单行 `$$...$$`
+- 复制成功后显示「已复制」
+
+当前 Chrome 和 Edge 共用同一套源码、同一个 `public/manifest.json` 和同一个 `dist/` 构建目录。现阶段不需要新增 `manifest.chrome.json` 或 `manifest.edge.json`。
+
+---
+
 ## 使用方法
 
 ### 场景 1：点击公式复制

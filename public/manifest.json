@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "GPT Markdown",
   "version": "0.1.0",
-  "description": "Click math formulas in ChatGPT to copy them as Markdown.",
+  "description": "Copy AI responses with math formulas as Markdown.",
   "permissions": ["clipboardWrite"],
   "host_permissions": [
     "https://chatgpt.com/*",
