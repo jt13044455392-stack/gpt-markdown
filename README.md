@@ -27,26 +27,26 @@ $$\int_0^1 x^2 dx = \frac{1}{3}$$
 
 ## 快速安装与使用（推荐，无需 Node.js 18）
 
-如果你只是想使用该插件，不需要进行代码开发，请按照以下步骤一键安装：
+如果你不是开发者，请直接按照以下 **3 步图文指南**一键安装使用：
 
-1. **下载安装包**：
-   - 打开项目的 [Releases](https://github.com/jt13044455392-stack/gpt-markdown/releases) 页面。
-   - 下载最新版本的 `gpt-markdown.zip` 压缩包，并解压缩到本地。
+### 第一步：点击 Releases 进入发布页面
+在项目 GitHub 首页右侧，点击 **Releases**（如下图红框所示）：
 
-2. **在 Edge 浏览器中加载**：
-   - 打开 Edge 浏览器，在地址栏输入 `edge://extensions/` 并回车。
-   - 开启左侧（或左下角）的 **「开发人员模式」** 开关。
-   - 点击 **「加载解压的扩展」**（Load unpacked）按钮。
-   - 选择你刚刚**解压出来的文件夹**即可安装成功。
+![点击进入 Releases](docs/images/step1_releases.png)
 
-3. **在 Chrome 浏览器中加载**：
-   - 打开 Chrome 浏览器，在地址栏输入 `chrome://extensions/` 并回车。
-   - 开启右上角的 **「开发者模式」** 开关。
-   - 点击 **「加载已解压的扩展程序」** 按钮。
-   - 选择你刚刚**解压出来的文件夹**即可安装成功。
+### 第二步：下载第一个打包好的 zip 文件
+在 Assets 列表中，点击下载第一个 **`gpt-markdown.zip`** 文件（注意：请勿下载带有 Source code 字样的压缩包）：
 
-4. **开始使用**：
-   - 安装完成后，打开 `https://chatgpt.com` 或 `https://claude.ai` 刷新页面即可直接使用。
+![下载 zip 包](docs/images/step2_download.png)
+
+### 第三步：解压并拖入浏览器
+1. 将下载好的 `gpt-markdown.zip` **解压缩**，得到一个 `gpt-markdown` 文件夹。
+2. 打开 Edge 浏览器（Chrome 同样适用），在地址栏输入 `edge://extensions/` 进入扩展管理页面，并**开启“开发人员模式”**。
+3. 直接将解压出来的 **`gpt-markdown` 文件夹** 从电脑文件夹中**拖拽**到 Edge 的扩展页面中（页面中央会显示“拖放以安装”），即可自动完成安装：
+
+![拖拽安装](docs/images/step3_drag_install.png)
+
+4. **开始使用**：安装完成后，打开 `https://chatgpt.com` 或 `https://claude.ai` 刷新页面，即可直接使用插件。
 
 ---
 
