@@ -25,51 +25,64 @@ $$\int_0^1 x^2 dx = \frac{1}{3}$$
 
 ---
 
-## 安装开发依赖
+## 快速安装与使用（推荐，无需 Node.js 18）
 
-需要 Node.js 18 及以上版本。
+如果你只是想使用该插件，不需要进行代码开发，请按照以下步骤一键安装：
 
-```bash
-cd gpt-markdown
-npm install
-```
+1. **下载安装包**：
+   - 打开项目的 [Releases](https://github.com/jt13044455392-stack/gpt-markdown/releases) 页面。
+   - 下载最新版本的 `gpt-markdown.zip` 压缩包，并解压缩到本地。
+
+2. **在 Edge 浏览器中加载**：
+   - 打开 Edge 浏览器，在地址栏输入 `edge://extensions/` 并回车。
+   - 开启左侧（或左下角）的 **「开发人员模式」** 开关。
+   - 点击 **「加载解压的扩展」**（Load unpacked）按钮。
+   - 选择你刚刚**解压出来的文件夹**即可安装成功。
+
+3. **在 Chrome 浏览器中加载**：
+   - 打开 Chrome 浏览器，在地址栏输入 `chrome://extensions/` 并回车。
+   - 开启右上角的 **「开发者模式」** 开关。
+   - 点击 **「加载已解压的扩展程序」** 按钮。
+   - 选择你刚刚**解压出来的文件夹**即可安装成功。
+
+4. **开始使用**：
+   - 安装完成后，打开 `https://chatgpt.com` 或 `https://claude.ai` 刷新页面即可直接使用。
 
 ---
 
-## 本地构建
+## 开发者本地构建与调试
+
+如果你是开发者，想要修改代码或进行二次开发，请参考以下指南。
+
+### 1. 安装开发依赖
+
+项目基于 Node.js 18 及以上版本开发：
+
+```bash
+npm install
+```
+
+### 2. 本地构建
+
+运行以下命令进行编译，构建产物将输出到 `dist/` 目录：
 
 ```bash
 npm run build
 ```
 
-构建产物输出到 `dist/` 目录：
-
-```
-dist/
-  manifest.json
-  content.js
-  content.css
-```
-
----
-
-## 运行测试
+### 3. 运行测试
 
 ```bash
 npm test
 ```
 
----
+### 4. 开发者模式加载与更新
 
-## 在 Edge / Chrome 中加载
-
-1. 打开 `edge://extensions/`（Chrome 用 `chrome://extensions/`）
-2. 打开右上角「开发者模式」
-3. 点击「加载已解压的扩展程序」
-4. 选择项目下的 **`dist/`** 文件夹（不是项目根目录）
-5. 扩展加载成功后，打开 `https://chatgpt.com` 或 `https://claude.ai` 即可使用
-
-修改代码后重新运行 `npm run build`，然后在扩展页面点击「刷新」图标即可更新。
+1. 打开 `edge://extensions/`（Chrome 用 `chrome://extensions/`）。
+2. 开启「开发人员模式 / 开发者模式」开关。
+3. 点击「加载解压的扩展 / 加载已解压的扩展程序」。
+4. **选择项目根目录下的 `dist/` 文件夹**。
+5. 后续修改 `src/` 下的代码后，需重新运行 `npm run build`，并在浏览器扩展管理页面点击该扩展的「刷新」图标即可完成更新。
 
 ---
 
