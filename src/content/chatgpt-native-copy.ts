@@ -110,7 +110,24 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
       continue;
     }
 
-    // 3. 支持 \begin{env} ... \end{env} 环境（Display）
+    // 4. 支持 \boxed{ ... } 环境（Display）
+    if (markdown.startsWith("\\boxed{", index)) {
+      let depth = 0;
+      let end = -1;
+      for (let i = index; i < markdown.length; i++) {
+        if (isEscaped(markdown, i)) continue;
+        if (markdown[i] === "{") depth++;
+        if (markdown[i] === "}" && --depth === 0) { end = i; break; }
+      }
+      if (end !== -1) {
+        const latex = markdown.slice(index, end + 1).trim();
+        if (latex) {
+          expressions.push({ latex, isDisplay: true, start: index, end: end + 1 });
+          index = end + 1;
+          continue;
+        }
+      }
+    }
     if (markdown.startsWith("\\begin{", index)) {
       const endTagIndex = markdown.indexOf("\\end{", index);
       if (endTagIndex !== -1) {
@@ -147,15 +164,19 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
       markdown[index] === "[" &&
       !markdown.slice(Math.max(0, index - 5), index).endsWith("\\left")
     ) {
-      // ChatGPT 原生复制脱落反斜杠的块级公式: [ ... ] 或 [\n ... \n]
-      const endBrace = findUnescapedDelimiter(markdown, "]", index + 1);
+      // 优先寻找段末的 \n]，防止在 \right] 停下来
+      let endBrace = markdown.indexOf("\n]", index + 1);
+      if (endBrace === -1) {
+        endBrace = findUnescapedDelimiter(markdown, "]", index + 1);
+      }
       if (endBrace !== -1) {
+        const endPos = (markdown[endBrace] === "\n" && markdown[endBrace + 1] === "]") ? endBrace + 2 : endBrace + 1;
         const rawBody = markdown.slice(index + 1, endBrace);
         if (rawBody.includes("\n") || /[\\^_{}=+\-*/<>]/.test(rawBody)) {
           const latex = rawBody.trim();
           if (latex) {
-            expressions.push({ latex, isDisplay: true, start: index, end: endBrace + 1 });
-            index = endBrace + 1;
+            expressions.push({ latex, isDisplay: true, start: index, end: endPos });
+            index = endPos;
             continue;
           }
         }
@@ -229,6 +250,7 @@ export function normalizeChatGPTMarkdown(markdown: string): string {
 
   // 自动修复破损的 \right$$ 与 \left$$，消除脱落的方括号与混乱换行
   const sanitizedInput = markdown
+    .replace(/\\right\$\$\s*\^2/g, "\\right]^2")
     .replace(/\\right\$\$\s*\.?\s*\n?\]?/g, "\\right].$$")
     .replace(/\\right\$\$\s*,?\s*\n?\]?/g, "\\right],$$")
     .replace(/\\right\$\$/g, "\\right]")

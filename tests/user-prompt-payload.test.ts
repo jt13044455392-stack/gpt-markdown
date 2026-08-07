@@ -120,4 +120,25 @@ $$h_\\lambda(x) = x^{-\\beta} \\left[ \\tilde C_1J_\\beta(x)+ \\tilde C_2Y_\\bet
     expect(normalized3).toContain("ds^2=a^2");
     expect(normalized3).toContain("h_\\lambda(x)");
   });
+
+  it("必须完整保留带有 \\boxed{...} 和 \\right]^2 的四组复杂宇宙学微扰与积分公式", () => {
+    const rawComplexFormulas = `$$\\boxed{ \\mathcal P_h(k,\\tau) = 2 \\int_0^\\infty dv \\int_{|1-v|}^{1+v}du, \\left[ \\frac{ 4v^2-(1+v^2-u^2)^2 }{ 4uv } \\right$$ ^2
+\\mathcal P_{\\mathcal R}(kv)
+\\mathcal P_{\\mathcal R}(ku)
+I^2(u,v,x)
+}
+]
+
+$$\\boxed{ \\overline{I_{\\rm KD}^2} = \\frac{9}{16\\pi u^4v^4x} \\left[ \\frac{ \\left( 3(u^2+v^2-1)^2-4u^2v^2 \\right)^2 }{ 4u^2v^2-(u^2+v^2-1)^2 } + 9(u^2+v^2-1)^2 \\right$$.
+}
+]`;
+
+    const res = normalizeChatGPTMarkdown(rawComplexFormulas);
+    expect(res).not.includes("\\right$$");
+    expect(res).not.includes("]\n");
+    expect(res).toContain("\\boxed{");
+    expect(res).toContain("\\mathcal P_h(k,\\tau)");
+    expect(res).toContain("\\overline{I_{\\rm KD}^2}");
+    expect(res).toContain("\\right]^2");
+  });
 });
