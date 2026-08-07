@@ -143,7 +143,10 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
       close = "$$";
       isDisplay = true;
       openingLength = 2;
-    } else if (markdown[index] === "[") {
+    } else if (
+      markdown[index] === "[" &&
+      !markdown.slice(Math.max(0, index - 5), index).endsWith("\\left")
+    ) {
       // ChatGPT 原生复制脱落反斜杠的块级公式: [ ... ] 或 [\n ... \n]
       const endBrace = findUnescapedDelimiter(markdown, "]", index + 1);
       if (endBrace !== -1) {
@@ -174,7 +177,7 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
     } else if (
       markdown[index] === "(" &&
       !isEscaped(markdown, index) &&
-      !markdown.slice(Math.max(0, index - 5), index).endsWith("\\left")
+      !/[a-zA-Z0-9_\\]$/.test(markdown.slice(Math.max(0, index - 10), index))
     ) {
       // ChatGPT 原生复制有时脱落 \ 留下裸括号 ( ... )
       const end = findMatchingParenthesis(markdown, index);
@@ -222,14 +225,23 @@ export function extractMarkdownMathExpressions(markdown: string): MarkdownMathEx
 
 /** Normalize all observed ChatGPT math delimiters to Obsidian Markdown. */
 export function normalizeChatGPTMarkdown(markdown: string): string {
-  const expressions = scanMarkdownMathExpressions(markdown);
-  if (expressions.length === 0) return markdown;
+  if (typeof markdown !== "string" || !markdown.trim()) return markdown;
+
+  // 自动修复破损的 \right$$ 与 \left$$，消除脱落的方括号与混乱换行
+  const sanitizedInput = markdown
+    .replace(/\\right\$\$\s*\.?\s*\n?\]?/g, "\\right].$$")
+    .replace(/\\right\$\$\s*,?\s*\n?\]?/g, "\\right],$$")
+    .replace(/\\right\$\$/g, "\\right]")
+    .replace(/\\left\$\$/g, "\\left[");
+
+  const expressions = scanMarkdownMathExpressions(sanitizedInput);
+  if (expressions.length === 0) return sanitizedInput;
 
   let result = "";
   let cursor = 0;
 
   for (const expression of expressions) {
-    result += markdown.slice(cursor, expression.start);
+    result += sanitizedInput.slice(cursor, expression.start);
     let cleanLatex = (expression.isDisplay ? expression.latex : cleanOuterParentheses(expression.latex))
       .replace(/\n\s*={3,}\s*\n/g, " = ")
       .replace(/={3,}/g, "=")
@@ -244,7 +256,7 @@ export function normalizeChatGPTMarkdown(markdown: string): string {
     cursor = expression.end;
   }
 
-  return (result + markdown.slice(cursor))
+  return (result + sanitizedInput.slice(cursor))
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }

@@ -106,4 +106,18 @@ $$`;
     expect(normalized2).includes("\\Theta(u+v-\\sqrt3)");
     expect(normalized2).not.includes("\n");
   });
+
+  it("绝对不能将 \\left[ 和 \\right] 拆碎成 \\right$$ 也不留孤立脱落的 ] 括号", () => {
+    const rawInputProblem3 = `$$ds^2=a^2(\\tau) \\left[ -(1+2\\Phi)d\\tau^2 + (\\delta_{ij}-2\\Psi\\delta_{ij}+2h_{ij})dx^idx^j \\right$$.
+]
+
+$$h_\\lambda(x) = x^{-\\beta} \\left[ \\tilde C_1J_\\beta(x)+ \\tilde C_2Y_\\beta(x) \\right$$,
+]`;
+
+    const normalized3 = normalizeChatGPTMarkdown(rawInputProblem3);
+    expect(normalized3).not.includes("\\right$$");
+    expect(normalized3).not.includes("]\n]");
+    expect(normalized3).toContain("ds^2=a^2");
+    expect(normalized3).toContain("h_\\lambda(x)");
+  });
 });

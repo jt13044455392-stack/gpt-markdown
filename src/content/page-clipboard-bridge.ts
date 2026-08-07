@@ -164,6 +164,12 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
 
   function cleanLatexBody(raw: string): string {
     let s = raw.trim();
+    // 自动修复破损的 \right$$ 与 \left$$，补全方括号闭合
+    s = s.replace(/\\right\$\$\s*\.?\s*\]?/g, "\\right].")
+         .replace(/\\right\$\$\s*,?\s*\]?/g, "\\right],")
+         .replace(/\\right\$\$/g, "\\right]")
+         .replace(/\\left\$\$/g, "\\left[");
+
     // 清理 ChatGPT / HTML DOM 误产生的 markdown 标题分隔符线 (=== / ---)
     s = s.replace(/\n\s*={3,}\s*\n/g, " = ")
          .replace(/={3,}/g, "=")
@@ -195,6 +201,10 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
           const body = cleanLatexBody(markdown.slice(index + 2, end));
           result += `$$${body}$$`;
           index = end + 2;
+          // 吃掉 $$ 后面脱落留下的孤立右方括号 ]
+          while (index < markdown.length && markdown[index] === "]") {
+            index++;
+          }
           continue;
         }
       }
@@ -229,7 +239,11 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
         }
       }
 
-      if (markdown[index] === "[" && (markdown[index + 1] === "\n" || markdown.slice(index, index + 20).includes("\n"))) {
+      if (
+        markdown[index] === "[" &&
+        !markdown.slice(Math.max(0, index - 5), index).endsWith("\\left") &&
+        (markdown[index + 1] === "\n" || markdown.slice(index, index + 20).includes("\n"))
+      ) {
         const end = findUnescaped(markdown, "]", index + 1);
         if (end !== -1) {
           const body = markdown.slice(index + 1, end).trim();
@@ -245,7 +259,7 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       if (
         markdown[index] === "(" &&
         !isEscaped(markdown, index) &&
-        !markdown.slice(Math.max(0, index - 5), index).endsWith("\\left")
+        !/[a-zA-Z0-9_\\]$/.test(markdown.slice(Math.max(0, index - 10), index))
       ) {
         let depth = 0;
         let end = -1;
