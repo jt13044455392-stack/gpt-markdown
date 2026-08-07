@@ -160,4 +160,25 @@ $$\\boxed{ \\overline{I_{\\rm KD}^2} = \\frac{9}{16\\pi u^4v^4x} \\left[ \\frac{
     expect(resLong).toContain("# 23. 对我们现在研究最有价值的地方");
     expect(resLong).toContain("* 只考虑 perfect fluid；");
   });
+
+  it("必须压减多余空行，并将被换行分割的短变量公式无缝融合进正文", () => {
+    const rawSparseText = `假如你固定某个 PBH abundance,
+
+$$f_{\\rm PBH},$$
+
+radiation domination 和 kinetic domination 可以通过适当调节
+
+$$A_{\\mathcal R}$$
+
+得到差不多的 PBH 丰度。
+
+但对应的
+
+$$\\Omega_{\\rm GW}(f)$$`;
+
+    const res = normalizeChatGPTMarkdown(rawSparseText);
+    expect(res).not.includes("\n\n$$f_{\\rm PBH},$$\n\n");
+    expect(res).toContain("abundance,\n$$f_{\\rm PBH},$$\nradiation");
+    expect(res).not.includes("\n\n\n");
+  });
 });

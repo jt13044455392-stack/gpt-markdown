@@ -225,6 +225,15 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     return s;
   }
 
+  function compactMarkdownSpaces(text: string): string {
+    if (typeof text !== "string" || !text.trim()) return text;
+    let s = text;
+    s = s.replace(/\n{2,}\s*(\$\$[\s\S]*?\$\$)\s*\n{2,}/g, "\n$1\n");
+    s = s.replace(/([^\n])\n{2,}\s*(\$\$[\s\S]*?\$\$)/g, "$1\n$2");
+    s = s.replace(/(\$\$[\s\S]*?\$\$)\n{2,}\s*([^\n])/g, "$1\n$2");
+    return s.replace(/\n{3,}/g, "\n\n").trim();
+  }
+
   function isInvalidFormulaBody(body: string): boolean {
     // 1. 包含 Markdown 标题 (# 标题)，无论前面是空格还是换行
     if (/(?:^|\s|\n)#+\s/.test(body)) return true;
@@ -388,7 +397,7 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       index++;
     }
 
-    return result.replace(/\n{3,}/g, "\n\n").trim();
+    return compactMarkdownSpaces(result);
   }
 
   function publish(text: string): void {

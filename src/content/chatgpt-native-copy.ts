@@ -3,6 +3,7 @@ import {
   preSanitizeChatGPTText,
   cleanLatexBody,
   isInvalidFormulaBody,
+  compactMarkdownSpaces,
 } from "./math-cleaner";
 
 export interface MarkdownMathExpression {
@@ -283,9 +284,7 @@ export function normalizeChatGPTMarkdown(markdown: string): string {
     cursor = expression.end;
   }
 
-  return (result + sanitizedInput.slice(cursor))
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return compactMarkdownSpaces(result + sanitizedInput.slice(cursor));
 }
 
 function isAssistantSection(section: HTMLElement): boolean {

@@ -101,6 +101,22 @@ export function cleanLatexBody(raw: string): string {
   return s;
 }
 
+export function compactMarkdownSpaces(text: string): string {
+  if (typeof text !== "string" || !text.trim()) return text;
+
+  let s = text;
+
+  // 1. 消除块级公式 $$...$$ 上下多余的连续空行，保持公式与正文紧凑衔接
+  s = s.replace(/\n{2,}\s*(\$\$[\s\S]*?\$\$)\s*\n{2,}/g, "\n$1\n");
+  s = s.replace(/([^\n])\n{2,}\s*(\$\$[\s\S]*?\$\$)/g, "$1\n$2");
+  s = s.replace(/(\$\$[\s\S]*?\$\$)\n{2,}\s*([^\n])/g, "$1\n$2");
+
+  // 2. 消除连续 3 个以上的冗余换行
+  s = s.replace(/\n{3,}/g, "\n\n");
+
+  return s.trim();
+}
+
 export function isInvalidFormulaBody(body: string): boolean {
   // 1. 包含 Markdown 标题 (# 标题)，无论前面是空格还是换行
   if (/(?:^|\s|\n)#+\s/.test(body)) return true;
