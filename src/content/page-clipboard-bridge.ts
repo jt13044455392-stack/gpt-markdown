@@ -172,6 +172,10 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
          .replace(/\\right\$\$/g, "\\right]")
          .replace(/\\left\$\$/g, "\\left[");
 
+    // 自动修复脱落反斜杠的花括号 \left{ -> \left\{ 与 \right} -> \right\}
+    s = s.replace(/\\left\s*\{/g, "\\left\\{")
+         .replace(/\\right\s*\}/g, "\\right\\}");
+
     // 剥离外层误包含的 [ 和 ]
     while (s.startsWith("[") && s.endsWith("]") && s.length > 2) {
       s = s.slice(1, -1).trim();
@@ -186,6 +190,20 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     // 将多行硬换行压缩为空格，实现单行紧凑输出
     s = s.replace(/\s*\n\s*/g, " ").trim();
     return s;
+  }
+
+  function isInvalidFormulaBody(body: string): boolean {
+    // 1. 包含 Markdown 标题 (# 标题)，无论前面是空格还是换行
+    if (/(?:^|\s|\n)#+\s/.test(body)) return true;
+
+    // 2. 包含多个无反斜杠的列表符 * 或 -
+    if ((body.match(/(?:^|\s|\n)[\*\-]\s/g) || []).length >= 2) return true;
+
+    // 3. 剥离 \text{...} 与 \mathrm{...} 内部中文后，仍含有连续中文字符
+    const bodyWithoutText = body.replace(/\\(?:text|mathrm|mb|rm|ka)\{[^}]*\}/g, "");
+    if (/[\u4e00-\u9fa5]{3,}/u.test(bodyWithoutText)) return true;
+
+    return false;
   }
 
   function normalizeText(markdown: string): string {
@@ -226,7 +244,13 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       if (markdown.startsWith("$$", index)) {
         const end = findUnescaped(markdown, "$$", index + 2);
         if (end !== -1) {
-          const body = cleanLatexBody(markdown.slice(index + 2, end));
+          const candidateBody = markdown.slice(index + 2, end);
+          if (isInvalidFormulaBody(candidateBody)) {
+            result += markdown[index];
+            index++;
+            continue;
+          }
+          const body = cleanLatexBody(candidateBody);
           result += `$$${body}$$`;
           index = end + 2;
           // 吃掉 $$ 后面脱落留下的孤立右方括号 ]

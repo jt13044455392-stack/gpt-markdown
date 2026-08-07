@@ -244,17 +244,33 @@ export function extractMarkdownMathExpressions(markdown: string): MarkdownMathEx
   return scanMarkdownMathExpressions(markdown).map(({ latex, isDisplay }) => ({ latex, isDisplay }));
 }
 
+function isInvalidFormulaBody(body: string): boolean {
+  // 1. 包含 Markdown 标题 (# 标题)，无论前面是空格还是换行
+  if (/(?:^|\s|\n)#+\s/.test(body)) return true;
+
+  // 2. 包含多个无反斜杠的列表符 * 或 -
+  if ((body.match(/(?:^|\s|\n)[\*\-]\s/g) || []).length >= 2) return true;
+
+  // 3. 剥离 \text{...} 与 \mathrm{...} 内部中文后，仍含有连续中文字符
+  const bodyWithoutText = body.replace(/\\(?:text|mathrm|mb|rm|ka)\{[^}]*\}/g, "");
+  if (/[\u4e00-\u9fa5]{3,}/u.test(bodyWithoutText)) return true;
+
+  return false;
+}
+
 /** Normalize all observed ChatGPT math delimiters to Obsidian Markdown. */
 export function normalizeChatGPTMarkdown(markdown: string): string {
   if (typeof markdown !== "string" || !markdown.trim()) return markdown;
 
-  // 自动修复破损的 \right$$ 与 \left$$，消除脱落的方括号与混乱换行
+  // 1. 自动修复破损的 \right$$ 与 \left$$，补全方括号与花括号闭合
   const sanitizedInput = markdown
     .replace(/\\right\$\$\s*\^2/g, "\\right]^2")
     .replace(/\\right\$\$\s*\.?\s*\n?\]?/g, "\\right].$$")
     .replace(/\\right\$\$\s*,?\s*\n?\]?/g, "\\right],$$")
     .replace(/\\right\$\$/g, "\\right]")
-    .replace(/\\left\$\$/g, "\\left[");
+    .replace(/\\left\$\$/g, "\\left[")
+    .replace(/\\left\s*\{/g, "\\left\\{")
+    .replace(/\\right\s*\}/g, "\\right\\}");
 
   const expressions = scanMarkdownMathExpressions(sanitizedInput);
   if (expressions.length === 0) return sanitizedInput;
@@ -263,8 +279,17 @@ export function normalizeChatGPTMarkdown(markdown: string): string {
   let cursor = 0;
 
   for (const expression of expressions) {
-    result += sanitizedInput.slice(cursor, expression.start);
+    const gap = sanitizedInput.slice(cursor, expression.start);
+    if (isInvalidFormulaBody(expression.latex)) {
+      result += gap + expression.latex;
+      cursor = expression.end;
+      continue;
+    }
+
+    result += gap;
     let cleanLatex = (expression.isDisplay ? expression.latex : cleanOuterParentheses(expression.latex))
+      .replace(/\\left\s*\{/g, "\\left\\{")
+      .replace(/\\right\s*\}/g, "\\right\\}")
       .replace(/\n\s*={3,}\s*\n/g, " = ")
       .replace(/={3,}/g, "=")
       .replace(/\n\s*-{3,}\s*\n/g, " - ")
