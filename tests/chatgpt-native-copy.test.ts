@@ -122,9 +122,7 @@ describe("normalizeChatGPTMarkdown", () => {
 
     expect(normalizeChatGPTMarkdown(markdown)).toBe([
       "总丰度取 $f_{\\rm tot}=1$。",
-      "$$",
-      "\\langle M\\rangle = \\frac{f_{\\rm tot}}{n}",
-      "$$",
+      "$$\\langle M\\rangle = \\frac{f_{\\rm tot}}{n}$$",
     ].join("\n"));
   });
 
@@ -148,8 +146,8 @@ M_{\\rm enh}=2.14\\times10^{-8}M_\\odot
     const result = normalizeChatGPTMarkdown(input);
     expect(result).toContain("$m_{1/2}$");
     expect(result).toContain("$m_0$");
-    expect(result).toContain("$$\n\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)\n$$");
-    expect(result).toContain("$$\nM_{\\rm enh}=2.14\\times10^{-8}M_\\odot\n$$");
+    expect(result).toContain("$$\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)$$");
+    expect(result).toContain("$$M_{\\rm enh}=2.14\\times10^{-8}M_\\odot$$");
   });
 
   it("normalizes real-world ChatGPT payload with [ ... ] and ( ... ) formulas", () => {
@@ -165,9 +163,7 @@ M_{\\rm enh}=2.14\\times10^{-8}M_\\odot
     const expected = [
       "横轴：$m_{1/2}$",
       "对于 满足条件的点，用连续色图显示",
-      "$$",
-      "\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)",
-      "$$",
+      "$$\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)$$",
       "切片：$A_0,\\tan\\beta$",
     ].join("\n");
 

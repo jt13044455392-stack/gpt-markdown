@@ -81,8 +81,8 @@ describe("网页端真实操作 E2E 验证", () => {
 
     expect(finalResult).toContain("$m_{1/2}$");
     expect(finalResult).toContain("$m_0$");
-    expect(finalResult).toContain("$$\n\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)\n$$");
-    expect(finalResult).toContain("$$\nM_{\\rm enh}=2.14\\times10^{-8}M_\\odot\n$$");
+    expect(finalResult).toContain("$$\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)$$");
+    expect(finalResult).toContain("$$M_{\\rm enh}=2.14\\times10^{-8}M_\\odot$$");
     expect(finalResult).not.toContain("[\n");
     expect(finalResult).not.toContain("(m_{1/2})");
   });

@@ -50,13 +50,60 @@ describe("用户真实 Prompt 文本提取规范化测试", () => {
     expect(normalized).includes("$A_0$");
     expect(normalized).includes("$\\tan\\beta$");
 
-    // 校验 2：块级公式转换为 $$ ... $$，包含反斜杠
-    expect(normalized).includes("$$\n\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)\n$$");
-    expect(normalized).includes("$$\nM_{\\rm enh}=2.14\\times10^{-8}M_\\odot\n$$");
-    expect(normalized).includes("$$\nA_0={-4000,,-1000,,0,,2000,,4000}\\ {\\rm GeV}\n$$");
+    // 校验 2：块级公式转换为单行 $$...$$，包含反斜杠
+    expect(normalized).includes("$$\\log_{10}!\\left(M_{\\rm enh}/M_\\odot\\right)$$");
+    expect(normalized).includes("$$M_{\\rm enh}=2.14\\times10^{-8}M_\\odot$$");
+    expect(normalized).includes("$$A_0={-4000,,-1000,,0,,2000,,4000}\\ {\\rm GeV}$$");
 
     // 校验 3：包含完整的带反斜杠 LaTeX 指令
     expect(normalized).toMatch(/\\log_\{10\}/);
     expect(normalized).not.toMatch(/(?<!\\)log_\{10\}/);
+  });
+
+  it("必须消除公式中出现的 Setext Heading 分隔符 (===) 并且输出单行块级公式", () => {
+    const rawInputProblem1 = `$$
+\\mathcal H\\equiv\\frac{a'}a
+==========================
+
+\\frac{2}{(1+3w)\\tau}.
+$$`;
+    const normalized1 = normalizeChatGPTMarkdown(rawInputProblem1);
+    expect(normalized1).not.includes("============");
+    expect(normalized1).toBe("$$\\mathcal H\\equiv\\frac{a'}a = \\frac{2}{(1+3w)\\tau}.$$");
+  });
+
+  it("必须正确处理复杂嵌套括号 LaTeX 公式，不破坏渲染", () => {
+    const rawInputProblem2 = `$$
+\\overline{I_{\\rm RD}^2}
+=======================
+
+\\frac{
+9(u^2+v^2-3)^2
+}{
+32u^6v^6x^2
+}
+\\left[
+\\pi^2
+(u^2+v^2-3)^2
+\\Theta(u+v-\\sqrt3)
++
+\\left[
+-4uv+
+(u^2+v^2-3)
+\\ln\\left|
+\\frac{3-(u+v)^2}
+{3-(u-v)^2}
+\\right|
+\\right]
+^2
+\\right]
+$$`;
+    const normalized2 = normalizeChatGPTMarkdown(rawInputProblem2);
+    expect(normalized2).not.includes("=======");
+    expect(normalized2.startsWith("$$")).toBe(true);
+    expect(normalized2.endsWith("$$")).toBe(true);
+    expect(normalized2).includes("\\overline{I_{\\rm RD}^2}");
+    expect(normalized2).includes("\\Theta(u+v-\\sqrt3)");
+    expect(normalized2).not.includes("\n");
   });
 });

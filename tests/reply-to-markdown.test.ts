@@ -24,7 +24,7 @@ describe("convertReplyToMarkdown", () => {
       `<p>公式：</p><div class="katex-display" data-math="\\int_0^1 x^2 dx"></div>`
     );
     const result = convertReplyToMarkdown(root);
-    expect(result).toContain("$$\n\\int_0^1 x^2 dx\n$$");
+    expect(result).toContain("$$\\int_0^1 x^2 dx$$");
   });
 
   it("清理 ChatGPT 错误格式 [ ... ]", () => {

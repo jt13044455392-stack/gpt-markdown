@@ -162,6 +162,18 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     return s;
   }
 
+  function cleanLatexBody(raw: string): string {
+    let s = raw.trim();
+    // 清理 ChatGPT / HTML DOM 误产生的 markdown 标题分隔符线 (=== / ---)
+    s = s.replace(/\n\s*={3,}\s*\n/g, " = ")
+         .replace(/={3,}/g, "=")
+         .replace(/\n\s*-{3,}\s*\n/g, " - ")
+         .replace(/-{3,}/g, "-");
+    // 将多行硬换行压缩为空格，实现单行紧凑输出
+    s = s.replace(/\s*\n\s*/g, " ").trim();
+    return s;
+  }
+
   function normalizeText(markdown: string): string {
     if (typeof markdown !== "string" || !markdown.trim()) return markdown;
 
@@ -180,7 +192,8 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       if (markdown.startsWith("$$", index)) {
         const end = findUnescaped(markdown, "$$", index + 2);
         if (end !== -1) {
-          result += markdown.slice(index, end + 2);
+          const body = cleanLatexBody(markdown.slice(index + 2, end));
+          result += `$$${body}$$`;
           index = end + 2;
           continue;
         }
@@ -189,7 +202,8 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       if (markdown[index] === "$" && !isEscaped(markdown, index)) {
         const end = findUnescaped(markdown, "$", index + 1);
         if (end !== -1 && markdown[end + 1] !== "$") {
-          result += markdown.slice(index, end + 1);
+          const body = cleanLatexBody(markdown.slice(index + 1, end));
+          result += `$${body}$`;
           index = end + 1;
           continue;
         }
@@ -198,7 +212,8 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       if (markdown.startsWith("\\[", index)) {
         const end = findUnescaped(markdown, "\\]", index + 2);
         if (end !== -1) {
-          result += `$$\n${markdown.slice(index + 2, end).trim()}\n$$`;
+          const body = cleanLatexBody(markdown.slice(index + 2, end));
+          result += `$$${body}$$`;
           index = end + 2;
           continue;
         }
@@ -207,7 +222,8 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       if (markdown.startsWith("\\(", index)) {
         const end = findUnescaped(markdown, "\\)", index + 2);
         if (end !== -1) {
-          result += `$${cleanOuterParens(markdown.slice(index + 2, end))}$`;
+          const body = cleanLatexBody(cleanOuterParens(markdown.slice(index + 2, end)));
+          result += `$${body}$`;
           index = end + 2;
           continue;
         }
@@ -218,7 +234,8 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
         if (end !== -1) {
           const body = markdown.slice(index + 1, end).trim();
           if (body.includes("\n") || /[\\^_{}=+\-*/<>]/.test(body)) {
-            result += `$$\n${body}\n$$`;
+            const cleanBody = cleanLatexBody(body);
+            result += `$$${cleanBody}$$`;
             index = end + 1;
             continue;
           }
@@ -241,7 +258,8 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
           const body = markdown.slice(index + 1, end).trim();
           const clean = cleanOuterParens(body);
           if (clean && /[\\^_{}=+\-*/<>≤≥±,]/u.test(clean) && !/^\d+(?:[.,]\d+)?$/.test(clean)) {
-            result += `$${clean}$`;
+            const cleanBody = cleanLatexBody(clean);
+            result += `$${cleanBody}$`;
             index = end + 1;
             continue;
           }

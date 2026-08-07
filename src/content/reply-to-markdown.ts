@@ -12,24 +12,31 @@ function cleanLatex(raw: string): string {
   // 处理 ChatGPT 错误格式：[ ... ]（只清理最外层）
   if (s.startsWith("[") && s.endsWith("]")) {
     const inner = s.slice(1, -1).trim();
-    // 确认内部看起来像 LaTeX（包含反斜杠或数学符号），避免误删正常方括号
     if (/[\\^_{}=+\-*/<>]/.test(inner) || inner.length > 0) {
       s = inner;
     }
   }
 
-  return s.trim();
+  // 1. 清理误放入公式内部的 Markdown 标题/分割线字符 (====== 或 ------)，替换为标准等号或减号
+  s = s.replace(/\n\s*={3,}\s*\n/g, " = ")
+       .replace(/={3,}/g, "=")
+       .replace(/-{3,}/g, "-");
+
+  // 2. 将公式内部的连续空行与多余换行压缩为空格，保证公式紧凑性
+  s = s.replace(/\s*\n\s*/g, " ").trim();
+
+  return s;
 }
 
 /**
- * 把 LaTeX 包装成整段复制时的 Markdown 数学格式。
+ * 把 LaTeX 包装成整段复制时的 Markdown 数学格式（一整行输出，不分行）。
  * 行内：$latex$
- * 块级：$$\nlatex\n$$
+ * 块级：$$latex$$
  */
 function wrapForReply(latex: string, isDisplay: boolean): string {
   const clean = cleanLatex(latex);
   if (isDisplay) {
-    return `$$\n${clean}\n$$`;
+    return `$$${clean}$$`;
   }
   return `$${clean}$`;
 }

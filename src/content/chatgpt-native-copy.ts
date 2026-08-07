@@ -230,9 +230,16 @@ export function normalizeChatGPTMarkdown(markdown: string): string {
 
   for (const expression of expressions) {
     result += markdown.slice(cursor, expression.start);
-    const cleanLatex = expression.isDisplay ? expression.latex : cleanOuterParentheses(expression.latex);
+    let cleanLatex = (expression.isDisplay ? expression.latex : cleanOuterParentheses(expression.latex))
+      .replace(/\n\s*={3,}\s*\n/g, " = ")
+      .replace(/={3,}/g, "=")
+      .replace(/\n\s*-{3,}\s*\n/g, " - ")
+      .replace(/-{3,}/g, "-")
+      .replace(/\s*\n\s*/g, " ")
+      .trim();
+
     result += expression.isDisplay
-      ? `$$\n${cleanLatex}\n$$`
+      ? `$$${cleanLatex}$$`
       : `$${cleanLatex}$`;
     cursor = expression.end;
   }
