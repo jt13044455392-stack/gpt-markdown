@@ -239,18 +239,18 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     return false;
   }
 
-  function normalizeText(markdown: string): string {
-    if (typeof markdown !== "string" || !markdown.trim()) return markdown;
-    const input = preSanitizeChatGPTText(markdown);
+  function normalizeText(markdownRaw: string): string {
+    if (typeof markdownRaw !== "string" || !markdownRaw.trim()) return markdownRaw;
+    const markdown = preSanitizeChatGPTText(markdownRaw);
 
     let result = "";
     let index = 0;
-    while (index < input.length) {
-      if (input.startsWith("```", index)) {
-        const lineEnd = input.indexOf("\n", index);
-        const fenceEnd = input.indexOf("```", lineEnd === -1 ? input.length : lineEnd + 1);
-        const endPos = fenceEnd === -1 ? input.length : fenceEnd + 3;
-        result += input.slice(index, endPos);
+    while (index < markdown.length) {
+      if (markdown.startsWith("```", index)) {
+        const lineEnd = markdown.indexOf("\n", index);
+        const fenceEnd = markdown.indexOf("```", lineEnd === -1 ? markdown.length : lineEnd + 1);
+        const endPos = fenceEnd === -1 ? markdown.length : fenceEnd + 3;
+        result += markdown.slice(index, endPos);
         index = endPos;
         continue;
       }
