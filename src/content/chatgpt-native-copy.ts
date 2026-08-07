@@ -225,6 +225,11 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
     }
 
     const latex = markdown.slice(index + openingLength, end).trim();
+    if (close === "$$" && isInvalidFormulaBody(latex)) {
+      index += openingLength;
+      continue;
+    }
+
     if (latex) {
       expressions.push({
         latex,
@@ -262,8 +267,29 @@ function isInvalidFormulaBody(body: string): boolean {
 export function normalizeChatGPTMarkdown(markdown: string): string {
   if (typeof markdown !== "string" || !markdown.trim()) return markdown;
 
-  // 1. 自动修复破损的 \right$$ 与 \left$$，补全方括号与花括号闭合
-  const sanitizedInput = markdown
+  // 1. 预清洗脱落的假 $$ 头部、脱落方括号与脱落小括号
+  let text = markdown
+    .replace(/(^|\s)\$\$\s*([a-zA-Z0-9_\\\^\-+=\(\)\s<>≤≥±,]{2,40})\s*(?:;\s*\]|;|\])\s*(?=\*|\#|[\u4e00-\u9fa5])/g, (_m, p1, p2) => {
+      return `${p1}$${p2.trim()}$ `;
+    })
+    .replace(/(?:\[\s*)?(\\boxed\{[\s\S]*?\})\s*(?:\$\$|\](?:\$\$)?)/g, (_m, p1) => {
+      return `\n\n$$${p1.trim()}$$\n\n`;
+    })
+    .replace(/(?<!\\)\[\s*(\\?[a-zA-Z0-9_\-\{\}]*\\(?:text|mathrm)[^\]]*)\s*\]/g, (match, inner) => {
+      if (!inner.includes("\n")) {
+        return `$${inner.trim()}$`;
+      }
+      return match;
+    })
+    .replace(/(?<!\\[a-zA-Z]+)\(\s*([a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*=[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*)\s*\)/g, (match, inner) => {
+      if (!/^\d+(?:[.,]\d+)?$/.test(inner.trim())) {
+        return `$${inner.trim()}$`;
+      }
+      return match;
+    });
+
+  // 2. 自动修复破损的 \right$$ 与 \left$$，补全方括号与花括号闭合
+  const sanitizedInput = text
     .replace(/\\right\$\$\s*\^2/g, "\\right]^2")
     .replace(/\\right\$\$\s*\.?\s*\n?\]?/g, "\\right].$$")
     .replace(/\\right\$\$\s*,?\s*\n?\]?/g, "\\right],$$")

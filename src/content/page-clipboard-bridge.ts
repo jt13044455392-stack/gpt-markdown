@@ -162,6 +162,39 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     return s;
   }
 
+  function preSanitizeChatGPTText(text: string): string {
+    if (typeof text !== "string" || !text.trim()) return text;
+    let s = text;
+
+    // 1. 修复脱落的伪 $$ 头部 (如 $$k\tau\gg1; ] * reheating -> $k\tau\gg1$ * reheating)
+    s = s.replace(/(^|\s)\$\$\s*([a-zA-Z0-9_\\\^\-+=\(\)\s<>≤≥±,]{2,40})\s*(?:;\s*\]|;|\])\s*(?=\*|\#|[\u4e00-\u9fa5])/g, (_m, p1, p2) => {
+      return `${p1}$${p2.trim()}$ `;
+    });
+
+    // 2. 修复脱落的末尾 [ \boxed{ ... }$$ 块 -> $$\boxed{ ... }$$
+    s = s.replace(/(?:\[\s*)?(\\boxed\{[\s\S]*?\})\s*(?:\$\$|\](?:\$\$)?)/g, (_m, p1) => {
+      return `\n\n$$${p1.trim()}$$\n\n`;
+    });
+
+    // 3. 修复脱落的 [ \delta\text{-function} ] -> $\delta\text{-function}$
+    s = s.replace(/(?<!\\)\[\s*(\\?[a-zA-Z0-9_\-\{\}]*\\(?:text|mathrm)[^\]]*)\s*\]/g, (match, inner) => {
+      if (!inner.includes("\n")) {
+        return `$${inner.trim()}$`;
+      }
+      return match;
+    });
+
+    // 4. 修复脱落的 (w\simeq1) 独立条件等式 -> $w\simeq1$
+    s = s.replace(/(?<!\\[a-zA-Z]+)\(\s*([a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*=[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*)\s*\)/g, (match, inner) => {
+      if (!/^\d+(?:[.,]\d+)?$/.test(inner.trim())) {
+        return `$${inner.trim()}$`;
+      }
+      return match;
+    });
+
+    return s;
+  }
+
   function cleanLatexBody(raw: string): string {
     let s = raw.trim();
 
@@ -208,15 +241,16 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
 
   function normalizeText(markdown: string): string {
     if (typeof markdown !== "string" || !markdown.trim()) return markdown;
+    const input = preSanitizeChatGPTText(markdown);
 
     let result = "";
     let index = 0;
-    while (index < markdown.length) {
-      if (markdown.startsWith("```", index)) {
-        const lineEnd = markdown.indexOf("\n", index);
-        const fenceEnd = markdown.indexOf("```", lineEnd === -1 ? markdown.length : lineEnd + 1);
-        const endPos = fenceEnd === -1 ? markdown.length : fenceEnd + 3;
-        result += markdown.slice(index, endPos);
+    while (index < input.length) {
+      if (input.startsWith("```", index)) {
+        const lineEnd = input.indexOf("\n", index);
+        const fenceEnd = input.indexOf("```", lineEnd === -1 ? input.length : lineEnd + 1);
+        const endPos = fenceEnd === -1 ? input.length : fenceEnd + 3;
+        result += input.slice(index, endPos);
         index = endPos;
         continue;
       }
@@ -246,8 +280,17 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
         if (end !== -1) {
           const candidateBody = markdown.slice(index + 2, end);
           if (isInvalidFormulaBody(candidateBody)) {
-            result += markdown[index];
-            index++;
+            // 如果误吞了大段正文，尝试仅提取开头的独立 Math 片段 (如 k\tau\gg1)
+            const match = candidateBody.match(/^([a-zA-Z0-9_\\\^\-+=\(\)\s<>≤≥±,]{2,30})\s*(?:;|\]|[\*\-])/);
+            if (match && /[\\^_{}=+\-*/<>≤≥±]/.test(match[1])) {
+              const cleanSub = cleanLatexBody(match[1]);
+              result += `$${cleanSub}$ `;
+              index = index + 2 + match[0].length;
+              continue;
+            }
+            // 否则仅推掉开头 $$，允许后续独立提取 \boxed{} 和其他公式
+            result += "";
+            index += 2;
             continue;
           }
           const body = cleanLatexBody(candidateBody);

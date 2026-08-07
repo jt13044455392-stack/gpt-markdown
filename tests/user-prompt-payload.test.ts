@@ -150,10 +150,13 @@ $$\\boxed{ \\overline{I_{\\rm KD}^2} = \\frac{9}{16\\pi u^4v^4x} \\left[ \\frac{
     expect(resCurly).not.includes("\\left{");
   });
 
-  it("绝不能允许 $$ 跨越 Markdown 标题和多个列表项误吞正文", () => {
+  it("绝不能允许 $$ 跨越 Markdown 标题和多个列表项误吞正文，且精准修复脱落子公式", () => {
     const rawLongText = ` $$k\\tau\\gg1; ] * reheating 被处理成**瞬时转换**； * 只考虑 perfect fluid； * 假设 primordial curvature perturbation 是 **Gaussian**； * 没有计算 primordial non-Gaussianity 对 SIGW/PBH 的影响； * PBH collapse threshold 在 (w\\simeq1) 下仍有很大的理论不确定性； * 应用部分使用 [ \\delta\\text{-function} ] 尖峰功率谱，主要是为了展示解析结构，并不是一个现实的 inflation power spectrum； * 作者也没有解决二阶张量扰动的 gauge-dependence 问题。  - # 23. 对我们现在研究最有价值的地方 如果把这篇文章和你前面看的 **2301.12750** 区分开，会非常清楚： [ \\boxed{ \\text{2301.12750： 通胀模型} \\rightarrow \\mathcal P_\\zeta(k) \\rightarrow PBH/SIGW }$$`;
     const resLong = normalizeChatGPTMarkdown(rawLongText);
-    expect(resLong.startsWith("$$k\\tau\\gg1; ] * reheating")).toBe(false);
+    expect(resLong).toContain("$k\\tau\\gg1$");
+    expect(resLong).toContain("$w\\simeq1$");
+    expect(resLong).toContain("$\\delta\\text{-function}$");
+    expect(resLong).toContain("$$\\boxed{ \\text{2301.12750： 通胀模型} \\rightarrow \\mathcal P_\\zeta(k) \\rightarrow PBH/SIGW }$$");
     expect(resLong).toContain("# 23. 对我们现在研究最有价值的地方");
     expect(resLong).toContain("* 只考虑 perfect fluid；");
   });
