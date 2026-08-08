@@ -370,9 +370,11 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
           const body = cleanLatexBody(markdown.slice(index, end + 1));
           result += `$$${body}$$`;
           index = end + 1;
-          while (index < markdown.length && (markdown[index] === "]" || markdown[index] === "\n")) {
-            if (markdown[index] === "]") { index++; break; }
+          // 只消化紧跟的孤立 ] 或 \n] 组合，绝不吃掉普通换行
+          if (index < markdown.length && markdown[index] === "]") {
             index++;
+          } else if (index + 1 < markdown.length && markdown[index] === "\n" && markdown[index + 1] === "]") {
+            index += 2;
           }
           continue;
         }
@@ -399,10 +401,11 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
           const body = cleanLatexBody(candidateBody);
           result += `$$${body}$$`;
           index = end + 2;
-          // 吃掉 $$ 后面脱落留下的孤立右方括号 ]
-          while (index < markdown.length && (markdown[index] === "]" || markdown[index] === "\n")) {
-            if (markdown[index] === "]") { index++; break; }
+          // 只消化紧跟的孤立 ] 或 \n] 组合，绝不吃掉普通换行
+          if (index < markdown.length && markdown[index] === "]") {
             index++;
+          } else if (index + 1 < markdown.length && markdown[index] === "\n" && markdown[index + 1] === "]") {
+            index += 2;
           }
           continue;
         }
