@@ -71,8 +71,33 @@ export function preSanitizeChatGPTText(text: string): string {
   return s;
 }
 
+export function repairLatexMultiLineEnvironments(latex: string): string {
+  if (typeof latex !== "string" || !latex.includes("\\begin{")) return latex;
+
+  // 匹配所有多行数学环境 \begin{env} ... \end{env}
+  const envRegex = /\\begin\{(array|matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|rcases|dcases|align|aligned|align\*|split|gather|gathered|gather\*|eqnarray|eqnarray\*)\}([\s\S]*?)\\end\{\1\}/g;
+
+  return latex.replace(envRegex, (match, envName, body) => {
+    let repairedBody = body;
+
+    // 1. 修复 \ \hline -> \\ \hline
+    repairedBody = repairedBody.replace(/(?<!\\)\\\s+(\\hline)/g, " \\\\ $1");
+
+    // 2. 修复行末误变为单反斜杠加空格的场景 (如 & 1.05\ 3\times10^8 -> & 1.05 \\ 3\times10^8)
+    repairedBody = repairedBody.replace(/([0-9a-zA-Z_\}\]\)])(?<!\\)\\\s+([0-9a-zA-Z_\{\[\\])/g, "$1 \\\\ $2");
+
+    // 3. 修复丢失双反斜杠但紧跟 \hline 的情况
+    repairedBody = repairedBody.replace(/([^\\\s])\s*\\hline/g, "$1 \\\\ \\hline");
+
+    return `\\begin{${envName}}${repairedBody}\\end{${envName}}`;
+  });
+}
+
 export function cleanLatexBody(raw: string): string {
   let s = raw.trim();
+
+  // 自动修复多行数学环境 (array, matrix, cases, align) 中脱落的换行 \\
+  s = repairLatexMultiLineEnvironments(s);
 
   // 自动修复破损的 \right$$ 与 \left$$，补全方括号闭合与上标 ^2
   s = s.replace(/\\right\$\$\s*\^2/g, "\\right]^2")
@@ -96,7 +121,7 @@ export function cleanLatexBody(raw: string): string {
        .replace(/\n\s*-{3,}\s*\n/g, " - ")
        .replace(/-{3,}/g, "-");
 
-  // 将多行硬换行压缩为空格，实现单行紧凑输出
+  // 将多行硬换行压缩为空格，实现单行紧凑输出 (保留 \\)
   s = s.replace(/\s*\n\s*/g, " ").trim();
   return s;
 }

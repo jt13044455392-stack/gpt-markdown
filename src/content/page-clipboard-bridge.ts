@@ -195,13 +195,28 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     return s;
   }
 
+  function repairLatexMultiLineEnvironments(latex: string): string {
+    if (typeof latex !== "string" || !latex.includes("\\begin{")) return latex;
+    const envRegex = /\\begin\{(array|matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|rcases|dcases|align|aligned|align\*|split|gather|gathered|gather\*|eqnarray|eqnarray\*)\}([\s\S]*?)\\end\{\1\}/g;
+    return latex.replace(envRegex, (_match, envName, body) => {
+      let repairedBody = body;
+      repairedBody = repairedBody.replace(/(?<!\\)\\\s+(\\hline)/g, " \\\\ $1");
+      repairedBody = repairedBody.replace(/([0-9a-zA-Z_\}\]\)])(?<!\\)\\\s+([0-9a-zA-Z_\{\[\\])/g, "$1 \\\\ $2");
+      repairedBody = repairedBody.replace(/([^\\\s])\s*\\hline/g, "$1 \\\\ \\hline");
+      return `\\begin{${envName}}${repairedBody}\\end{${envName}}`;
+    });
+  }
+
   function cleanLatexBody(raw: string): string {
     let s = raw.trim();
 
+    // 自动修复多行数学环境 (array, matrix, cases, align) 中脱落的换行 \\
+    s = repairLatexMultiLineEnvironments(s);
+
     // 自动修复破损的 \right$$ 与 \left$$，补全方括号闭合与上标 ^2
     s = s.replace(/\\right\$\$\s*\^2/g, "\\right]^2")
-         .replace(/\\right\$\$\s*\.?\s*\n?\]?/g, "\\right].")
-         .replace(/\\right\$\$\s*,?\s*\n?\]?/g, "\\right],")
+         .replace(/\\right\$\$\s*\.?\s*\n?\]?/g, "\\right].$$")
+         .replace(/\\right\$\$\s*,?\s*\n?\]?/g, "\\right],$$")
          .replace(/\\right\$\$/g, "\\right]")
          .replace(/\\left\$\$/g, "\\left[");
 

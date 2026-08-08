@@ -181,4 +181,14 @@ $$\\Omega_{\\rm GW}(f)$$`;
     expect(res).toContain("abundance,\n$$f_{\\rm PBH},$$\nradiation");
     expect(res).not.includes("\n\n\n");
   });
+
+  it("必须将多行数学环境 array/matrix 中脱落的换行精准修复为双反斜杠 \\\\", () => {
+    const rawArray = `$$\\begin{array}{c|c} k,[{\\rm Mpc}^{-1}] & x_r\\ \\hline 10^8 & 1.05\\ 3\\times10^8 & 3.16\\ 5\\times10^8 & 5.26\\ 10^9 & 10.5 \\end{array}$$`;
+    const res = normalizeChatGPTMarkdown(rawArray);
+    expect(res).toContain("x_r \\\\ \\hline");
+    expect(res).toContain("1.05 \\\\ 3\\times10^8");
+    expect(res).toContain("3.16 \\\\ 5\\times10^8");
+    expect(res).toContain("5.26 \\\\ 10^9");
+    expect(res).not.includes("1.05\\ 3");
+  });
 });
