@@ -1,6 +1,6 @@
 {
   "name": "gpt-markdown",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "description": "Click math formulas in ChatGPT to copy them as Markdown.",
   "private": true,
   "scripts": {

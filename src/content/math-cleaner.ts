@@ -47,6 +47,18 @@ export function preSanitizeChatGPTText(text: string): string {
   s = s.replace(/\(\$\$([a-zA-Z0-9_\-]+\]\[\d+\])\)/g, "([$1)");
   s = s.replace(/\$\$([a-zA-Z0-9_\-]+\]\[\d+\])/g, "[$1");
 
+  // 1.5. 合并行内公式 + 孤立 $$ 为 display math
+  //   如 $m_0,...\lambda_{\rm RPV}$ \rightarrow m_i. $$  ->  $$m_0,...\rightarrow m_i.$$
+  //   ChatGPT 的某些复制路径会将 display math 输出为 $...$ + 孤立 $$ 残留
+  s = s.replace(/\$([^$\n]+)\$ *(\\[a-zA-Z][^$\n]*?) *\$\$(?=\s*\n|\s*$)/gm, (_m, inner, rest) =>
+    `\n\n$$${inner} ${rest.trim()}$$\n\n`
+  );
+  // 处理不含后缀 LaTeX cmd 工代但公式内含 \cmd 的情况: $formula\cmd$ $$
+  s = s.replace(/\$([^$\n]*\\[a-zA-Z][^$\n]*)\$ *\$\$(?=\s*\n|\s*$)/gm, (_m, inner) =>
+    `\n\n$$${inner.trim()}$$\n\n`
+  );
+
+
   // 2. 修复包含反斜杠大公式的脱落方括号 [ \mathcal L ... }.$$ 或 [ \epsilon ... ]
   s = s.replace(/\[\s*(\\mathcal[\s\S]*?)\s*\.?\${1,2}/g, "\n\n$$$1$$\n\n");
   s = s.replace(/(?:^|\n)\s*\[\s*(\\mathcal[\s\S]*?)\s*\](?:\s*\n|$)/g, "\n\n$$$1$$\n\n");

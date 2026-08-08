@@ -171,6 +171,15 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     s = s.replace(/\(\$\$([a-zA-Z0-9_\-]+\]\[\d+\])\)/g, "([$1)");
     s = s.replace(/\$\$([a-zA-Z0-9_\-]+\]\[\d+\])/g, "[$1");
 
+    // 1.5. 合并行内公式 + 孤立 $$ 为 display math
+    s = s.replace(/\$([^$\n]+)\$ *(\\[a-zA-Z][^$\n]*?) *\$\$(?=\s*\n|\s*$)/gm, (_m, inner, rest) =>
+      `\n\n$$${inner} ${rest.trim()}$$\n\n`
+    );
+    s = s.replace(/\$([^$\n]*\\[a-zA-Z][^$\n]*)\$ *\$\$(?=\s*\n|\s*$)/gm, (_m, inner) =>
+      `\n\n$$${inner.trim()}$$\n\n`
+    );
+
+
     // 2. 修复包含反斜杠大公式的脱落方括号 [ \mathcal L ... }.$$ 或 [ \epsilon ... ]
     s = s.replace(/\[\s*(\\mathcal[\s\S]*?)\s*\.?\${1,2}/g, "\n\n$$$1$$\n\n");
     s = s.replace(/(?:^|\n)\s*\[\s*(\\mathcal[\s\S]*?)\s*\](?:\s*\n|$)/g, "\n\n$$$1$$\n\n");
