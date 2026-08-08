@@ -172,14 +172,27 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
       markdown[index] === "[" &&
       !markdown.slice(Math.max(0, index - 5), index).endsWith("\\left")
     ) {
-      // 优先寻找段末的 \n]，防止在 \right] 停下来
-      let endBrace = markdown.indexOf("\n]", index + 1);
-      if (endBrace === -1) {
-        endBrace = findUnescapedDelimiter(markdown, "]", index + 1);
+      // 优先匹配包含公式的各种闭合方式 (如 \n]、]、}.$$ 或 $$)
+      let endBrace = -1;
+      let endPos = -1;
+      const dollarEnd = markdown.indexOf("$$", index + 1);
+      const nlEnd = markdown.indexOf("\n]", index + 1);
+      const closeBracket = findUnescapedDelimiter(markdown, "]", index + 1);
+
+      if (dollarEnd !== -1 && (nlEnd === -1 || dollarEnd < nlEnd) && (closeBracket === -1 || dollarEnd < closeBracket)) {
+        endBrace = dollarEnd;
+        endPos = dollarEnd + 2;
+      } else if (nlEnd !== -1) {
+        endBrace = nlEnd;
+        endPos = nlEnd + 2;
+      } else {
+        endBrace = closeBracket;
+        endPos = closeBracket !== -1 ? closeBracket + 1 : -1;
       }
+
       if (endBrace !== -1) {
-        const endPos = (markdown[endBrace] === "\n" && markdown[endBrace + 1] === "]") ? endBrace + 2 : endBrace + 1;
-        const rawBody = markdown.slice(index + 1, endBrace);
+        let rawBody = markdown.slice(index + 1, endBrace);
+        if (rawBody.endsWith(".")) rawBody = rawBody.slice(0, -1);
         if (rawBody.includes("\n") || /[\\^_{}=+\-*/<>]/.test(rawBody)) {
           const latex = rawBody.trim();
           if (latex) {
@@ -198,7 +211,8 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
       if (end !== -1 && markdown[end + 1] !== "$") {
         const latex = markdown.slice(index + 1, end).trim();
         if (isLikelyInlineMath(latex)) {
-          expressions.push({ latex, isDisplay: false, start: index, end: end + 1 });
+          const isComplexDisplay = latex.includes("\\frac") || latex.includes("\\int") || latex.includes("\\sum") || latex.includes("\\begin");
+          expressions.push({ latex, isDisplay: isComplexDisplay, start: index, end: end + 1 });
           index = end + 1;
           continue;
         }

@@ -64,11 +64,12 @@ export function stripMathDelimiters(input: string): string {
  *
  * 找不到时返回 null。
  */
-export function extractLatex(element: HTMLElement): string | null {
+export function extractLatex(element: HTMLElement | any): string | null {
+  if (!element || typeof element.getAttribute !== "function") return null;
   // ── 第零优先级：向上或在当前节点查找 data-gpt-md-tex ──────────────────────
-  const texTarget = element.closest("[data-gpt-md-tex]") ?? element;
-  const gptMdTex = texTarget.getAttribute("data-gpt-md-tex");
-  if (gptMdTex && gptMdTex.trim().length > 0 && gptMdTex !== "undefined") {
+  const texTarget = (typeof element.closest === "function" ? element.closest("[data-gpt-md-tex]") : null) ?? element;
+  const gptMdTex = typeof texTarget.getAttribute === "function" ? texTarget.getAttribute("data-gpt-md-tex") : null;
+  if (typeof gptMdTex === "string" && gptMdTex.trim().length > 0 && gptMdTex !== "undefined") {
     return gptMdTex.trim();
   }
 

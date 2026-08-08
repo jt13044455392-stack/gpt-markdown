@@ -228,4 +228,22 @@ $$\\boxed{(M_{\\rm eff},f_{\\rm eff})}$$.
     expect(res).toContain("$$\\boxed{(M_{\\rm eff},f_{\\rm eff})}$$");
     expect(res).toContain("### 第一步：定义等效质量");
   });
+
+  it("必须正确解析真实微引力透镜 arXiv 论文文本中的所有小括号变量、方括号公式和列表", () => {
+    const rawArxiv = `($$arXiv][1]) 因此，**Poisson-only 版本需要下面这些东西：** * 我们自己的 (f(M))：这个已经有。 * 每晚的实际候选数 (N_{{\\rm obs},n})：论文给了，例如 S12 使用 ((5,7,0,\\ldots))。([arXiv][1]) * 每晚有效观测时间 (T_{{\\rm eff},n})：Table I 已给。([arXiv][1]) * M31 被监测的 source-star 数量：Table IX 给出了各 magnitude bin 的 (N_{s,m})。([arXiv][1]) * **最关键：每晚的有效探测效率** [ \\epsilon_{{\\rm eff},n}(\\hat t). ] 论文 Fig. 3 画出了它，但正文给的是曲线，不是数值表；它由模拟注入的 light curves 得到。([arXiv][1]) * 计算 (d\\Gamma/d\\hat t) 的 microlensing kernel，需要 [ \\rho_{\\rm DM,h}(d),\\quad v_{c,h},\\quad f_s(R_s),\\quad R_E(M,d),\\quad u_T(\\rho). ] 这些进入他们的 Eq. (B3)；其中 source-radius distribution (f_s(R_s)) 采用 Smyth et al. 的结果。([arXiv][1]) 所以**只复现事件数 likelihood，其实是有希望的**。最大的实际问题主要是把 Fig. 3 的 $\\epsilon_{{\\rm eff},n}(\\hat t)$ 数值化。 - 但如果要完整复现红蓝 S4/S12 contour，还需要 Eq. (18)： [ \\mathcal L_{{\\rm LC},j} = \\frac{ \\int dd,d\\theta, P(d_j|\\theta) ,d\\Gamma/(dd,d\\theta) }{ \\int dd,d\\theta, \\epsilon_{\\rm eff}(\\theta) ,d\\Gamma/(dd,d\\theta) }.$$`;
+
+    const res = normalizeChatGPTMarkdown(rawArxiv);
+    expect(res).toContain("([arXiv][1])");
+    expect(res).toContain("$f(M)$");
+    expect(res).toContain("$N_{{\\rm obs},n}$");
+    expect(res).toContain("$5,7,0,\\ldots$");
+    expect(res).toContain("$T_{{\\rm eff},n}$");
+    expect(res).toContain("$N_{s,m}$");
+    expect(res).toContain("$d\\Gamma/d\\hat t$");
+    expect(res).toContain("$f_s(R_s)$");
+    expect(res).toContain("$$\\rho_{\\rm DM,h}(d),\\quad v_{c,h},\\quad f_s(R_s),\\quad R_E(M,d),\\quad u_T(\\rho).$$");
+    expect(res).toContain("$$\\mathcal L_{{\\rm LC},j} = \\frac{ \\int dd,d\\theta, P(d_j|\\theta) ,d\\Gamma/(dd,d\\theta) }{ \\int dd,d\\theta, \\epsilon_{\\rm eff}(\\theta) ,d\\Gamma/(dd,d\\theta) }$$");
+    expect(res).not.includes("($$arXiv");
+    expect(res).not.includes("}.$$");
+  });
 });

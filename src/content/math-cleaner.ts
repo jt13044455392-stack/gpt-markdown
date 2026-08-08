@@ -11,7 +11,8 @@ export function isEscaped(str: string, index: number): boolean {
   return slashes % 2 === 1;
 }
 
-export function cleanOuterParens(text: string): string {
+export function cleanOuterParens(text: any): string {
+  if (typeof text !== "string") return "";
   let s = text.trim();
   while (s.startsWith("(") && s.endsWith(")") && s.length > 2) {
     let depth = 0;
@@ -42,15 +43,33 @@ export function preSanitizeChatGPTText(text: string): string {
     .replace(/\\left\s*\{/g, "\\left\\{")
     .replace(/\\right\s*\}/g, "\\right\\}");
 
-  // 1. 修复脱落的伪 $$ 头部 (如 $$k\tau\gg1; ] * reheating -> $k\tau\gg1$ * reheating)
+  // 1. 修复破损的 Markdown 引用链接 (如 ($$arXiv][1]) -> ([arXiv][1]))
+  s = s.replace(/\(\$\$([a-zA-Z0-9_\-]+\]\[\d+\])\)/g, "([$1)");
+  s = s.replace(/\$\$([a-zA-Z0-9_\-]+\]\[\d+\])/g, "[$1");
+
+  // 2. 修复包含反斜杠大公式的脱落方括号 [ \mathcal L ... }.$$ 或 [ \epsilon ... ]
+  s = s.replace(/\[\s*(\\mathcal[\s\S]*?)\s*\.?\${1,2}/g, "\n\n$$$1$$\n\n");
+  s = s.replace(/(?:^|\n)\s*\[\s*(\\mathcal[\s\S]*?)\s*\](?:\s*\n|$)/g, "\n\n$$$1$$\n\n");
+  s = s.replace(/(?:^|\n)\s*\[\s*(\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±,./{}|~*'"’]+)\s*\](?:\s*\n|$)/g, (_m, inner) => {
+    const trimmed = inner.trim();
+    if (trimmed.includes("=") || trimmed.includes("\\frac") || trimmed.includes("\\int") || trimmed.includes("\\quad")) {
+      return `\n\n$$${trimmed}$$\n\n`;
+    }
+    return `\n\n$$${trimmed}$$\n\n`;
+  });
+
+  // 3. 修复脱落的伪 $$ 头部 (如 $$k\tau\gg1; ] * reheating -> $k\tau\gg1$ * reheating)
   s = s.replace(/(^|\s)\$\$\s*([a-zA-Z0-9_\\\^\-+=\(\)\s<>≤≥±,]{2,40})\s*(?:;\s*\]|;|\])\s*(?=\*|\#|[\u4e00-\u9fa5])/g, (_m, p1, p2) => {
     return `${p1}$${p2.trim()}$ `;
   });
 
-  // 2. 清除公式末尾残留的孤立右方括号与标点 (如 $$\boxed{...}$$. \n ] -> $$\boxed{...}$$.)
+  // 4. 仅在正文中转换孤立的小括号数学变量 (如：(f(M)), (N_{{\rm obs},n}), (T_{{\rm eff},n}), (d\Gamma/d\hat t) -> $...$)
+  s = s.replace(/(^|[\u4e00-\u9fa5\s,，。；：:!！*])\(\s*([a-zA-Z0-9_\\\^\-+=\s<>≤≥±,./{}~]*\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±,./{}~]*|[a-zA-Z]\([a-zA-Z0-9_,\\/]+\))\s*\)(?=[\u4e00-\u9fa5\s,，。；：:!！*]|$)/g, "$1$$$2$$");
+
+  // 5. 清除公式末尾残留的孤立右方括号与标点 (如 $$\boxed{...}$$. \n ] -> $$\boxed{...}$$.)
   s = s.replace(/(\$\$[\s\S]*?\$\$)\s*([.,，。])?\s*\n*\s*\]/g, "$1$2");
 
-  // 3. 修复孤立脱落的短 [ \n f(M) \n ] -> $f(M)$
+  // 6. 修复孤立脱落的短 [ \n f(M) \n ] -> $f(M)$
   s = s.replace(/(?:^|\n)\s*\[\s*\n+\s*([a-zA-Z0-9_\-\(\)\s\\^_{}=+\-*/,]{1,40}?)\s*\n+\s*\]/g, (match, inner) => {
     const trimmed = inner.trim();
     if (!trimmed.includes("\n") && !trimmed.includes("\\boxed") && !trimmed.includes("\\int") && !trimmed.includes("=")) {
@@ -59,12 +78,12 @@ export function preSanitizeChatGPTText(text: string): string {
     return `\n\n$$${trimmed}$$\n\n`;
   });
 
-  // 4. 修复孤立脱落的 [ \boxed{ ... } ] 块或 [ $$...$$ ] 块 -> $$\boxed{ ... }$$
+  // 7. 修复孤立脱落的 [ \boxed{ ... } ] 块或 [ $$...$$ ] 块 -> $$\boxed{ ... }$$
   s = s.replace(/(?:^|\n)\s*\[\s*\n+\s*(\$\$)/g, "\n\n$1");
   s = s.replace(/(\$\$)\s*\n+\s*\]\s*(?:\n|$)/g, "$1\n\n");
   s = s.replace(/(?:^|\n)\s*\[\s*(\$\$\s*\\boxed\{[\s\S]*?\}\s*\$\$)\s*(?:\]|\$\$)?/g, "\n\n$1\n\n");
 
-  // 5. 修复脱落的花括号完整 \boxed{...} 块 (支持任意多层 \text{} 嵌套)
+  // 8. 修复脱落的花括号完整 \boxed{...} 块 (支持任意多层 \text{} 嵌套)
   let boxedIdx = 0;
   while ((boxedIdx = s.indexOf("\\boxed{", boxedIdx)) !== -1) {
     if (isEscaped(s, boxedIdx)) { boxedIdx += 7; continue; }
@@ -93,14 +112,12 @@ export function preSanitizeChatGPTText(text: string): string {
     boxedIdx += 7;
   }
 
-  // 6. 收缩紧贴已闭合公式的多余 $$ 符号 (如 $$\boxed{...}$$$$ -> $$\boxed{...}$$)
+  // 9. 收缩紧贴已闭合公式的多余 $$ 符号 (如 $$\boxed{...}$$$$ -> $$\boxed{...}$$)
   s = s.replace(/(\$\$[\s\S]*?\$\$)\s*\$\$/g, "$1");
   s = s.replace(/\$\$\s*(\$\$[\s\S]*?\$\$)/g, "$1");
-
-  // 7. 收缩 3 个及以上连续的 $$$$ -> $$
   s = s.replace(/\${3,}/g, "$$");
 
-  // 8. 修复脱落的 [ \delta\text{-function} ] -> $\delta\text{-function}$
+  // 10. 修复脱落的 [ \delta\text{-function} ] -> $\delta\text{-function}$
   s = s.replace(/(?<!\\)\[\s*(\\?[a-zA-Z0-9_\-\{\}]*\\(?:text|mathrm)[^\]]*)\s*\]/g, (match, inner) => {
     if (!inner.includes("\n")) {
       return `$${inner.trim()}$`;
@@ -108,7 +125,7 @@ export function preSanitizeChatGPTText(text: string): string {
     return match;
   });
 
-  // 9. 修复脱落的 (w\simeq1) 独立条件等式 -> $w\simeq1$
+  // 11. 修复脱落的 (w\simeq1) 独立条件等式 -> $w\simeq1$
   s = s.replace(/(?<!\\[a-zA-Z]+)\(\s*([a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*=[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*)\s*\)/g, (match, inner) => {
     if (!/^\d+(?:[.,]\d+)?$/.test(inner.trim())) {
       return `$${inner.trim()}$`;
@@ -116,20 +133,23 @@ export function preSanitizeChatGPTText(text: string): string {
     return match;
   });
 
-  // 10. 再次清除末尾孤立的 ] 和收缩多余 $$
+  // 12. 再次清除末尾孤立的 ] 和收缩多余 $$
   s = s.replace(/(\$\$[\s\S]*?\$\$)\s*([.,，。])?\s*\n*\s*\]/g, "$1$2");
   s = s.replace(/(\$\$[\s\S]*?\$\$)\s*\$\$/g, "$1");
   s = s.replace(/\$\$\s*(\$\$[\s\S]*?\$\$)/g, "$1");
   s = s.replace(/\${3,}/g, "$$");
 
-  // 11. 保证 Markdown 标题 (### 标题) 前后有独立双换行，绝不与上一行挤在一起
+  // 13. 保证 Markdown 标题 (### 标题) 前后有独立双换行，绝不与上一行挤在一起
   s = s.replace(/([^\n])\s*\n?\s*(#{1,6}\s+[^\n]+)/g, "$1\n\n$2");
+
+  // 14. 保证无序列表符 (* 或 -) 前后有清晰换行
+  s = s.replace(/([。：:!！\)\*\w])\s*([*•\-]\s+[\u4e00-\u9fa5\w\*])/g, "$1\n* $2");
 
   return s;
 }
 
-export function repairLatexMultiLineEnvironments(latex: string): string {
-  if (typeof latex !== "string" || !latex.includes("\\begin{")) return latex;
+export function repairLatexMultiLineEnvironments(latex: any): string {
+  if (typeof latex !== "string" || !latex.includes("\\begin{")) return String(latex ?? "");
 
   // 匹配所有多行数学环境 \begin{env} ... \end{env}
   const envRegex = /\\begin\{(array|matrix|pmatrix|bmatrix|vmatrix|Vmatrix|cases|rcases|dcases|align|aligned|align\*|split|gather|gathered|gather\*|eqnarray|eqnarray\*)\}([\s\S]*?)\\end\{\1\}/g;
@@ -150,7 +170,8 @@ export function repairLatexMultiLineEnvironments(latex: string): string {
   });
 }
 
-export function cleanLatexBody(raw: string): string {
+export function cleanLatexBody(raw: any): string {
+  if (typeof raw !== "string") return "";
   let s = raw.trim();
 
   // 自动修复多行数学环境 (array, matrix, cases, align) 中脱落的换行 \\
