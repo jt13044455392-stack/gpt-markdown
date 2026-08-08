@@ -165,7 +165,6 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
 
   function preSanitizeChatGPTText(text: any): string {
     if (typeof text !== "string" || !text.trim()) return String(text ?? "");
-    if (typeof text !== "string" || !text.trim()) return text;
     let s = text;
 
     // 1. 修复破损的 Markdown 引用链接 (如 ($$arXiv][1]) -> ([arXiv][1]))
@@ -175,13 +174,7 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     // 2. 修复包含反斜杠大公式的脱落方括号 [ \mathcal L ... }.$$ 或 [ \epsilon ... ]
     s = s.replace(/\[\s*(\\mathcal[\s\S]*?)\s*\.?\${1,2}/g, "\n\n$$$1$$\n\n");
     s = s.replace(/(?:^|\n)\s*\[\s*(\\mathcal[\s\S]*?)\s*\](?:\s*\n|$)/g, "\n\n$$$1$$\n\n");
-    s = s.replace(/(?:^|\n)\s*\[\s*(\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±,./{}|~*'"’]+)\s*\](?:\s*\n|$)/g, (_m, inner) => {
-      const trimmed = inner.trim();
-      if (trimmed.includes("=") || trimmed.includes("\\frac") || trimmed.includes("\\int") || trimmed.includes("\\quad")) {
-        return `\n\n$$${trimmed}$$\n\n`;
-      }
-      return `\n\n$$${trimmed}$$\n\n`;
-    });
+    s = s.replace(/(?:^|\n)\s*\[\s*(\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±,./{}|~*'"']+)\s*\](?:\s*\n|$)/g, (_m, inner) => `\n\n$$${inner.trim()}$$\n\n`);
 
     // 3. 修复脱落的伪 $$ 头部 (如 $$k\tau\gg1; ] * reheating -> $k\tau\gg1$ * reheating)
     s = s.replace(/(^|\s)\$\$\s*([a-zA-Z0-9_\\\^\-+=\(\)\s<>≤≥±,]{2,40})\s*(?:;\s*\]|;|\])\s*(?=\*|\#|[\u4e00-\u9fa5])/g, (_m, p1, p2) => {
@@ -191,8 +184,7 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     // 4. 仅在正文中转换孤立的小括号数学变量 (如：(f(M)), (N_{{\rm obs},n}), (T_{{\rm eff},n}), (d\Gamma/d\hat t) -> $...$)
     s = s.replace(/(^|[\u4e00-\u9fa5\s,，。；：:!！*])\(\s*([a-zA-Z0-9_\\\^\-+=\s<>≤≥±,./{}~]*\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±,./{}~]*|[a-zA-Z]\([a-zA-Z0-9_,\\/]+\))\s*\)(?=[\u4e00-\u9fa5\s,，。；：:!！*]|$)/g, "$1$$$2$$");
 
-    // 5. 清除公式末尾残留的孤立右方括号与标点 (如 $$\boxed{...}$$. \n ] -> $$\boxed{...}$$.)
-    s = s.replace(/(\$\$[\s\S]*?\$\$)\s*([.,，。])?\s*\n*\s*\]/g, "$1$2");
+    // 5. (末尾孤立 ] 清理统一在步骤 12 执行)
 
     // 6. 修复孤立脱落的短 [ \n f(M) \n ] -> $f(M)$
     s = s.replace(/(?:^|\n)\s*\[\s*\n+\s*([a-zA-Z0-9_\-\(\)\s\\^_{}=+\-*/,]{1,40}?)\s*\n+\s*\]/g, (match, inner) => {
@@ -258,10 +250,8 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       return match;
     });
 
-    // 12. 再次清除末尾孤立的 ] 和收缩多余 $$
+    // 12. 统一清除末尾孤立的 ] 与收缩多余 $$
     s = s.replace(/(\$\$[\s\S]*?\$\$)\s*([.,，。])?\s*\n*\s*\]/g, "$1$2");
-    s = s.replace(/(\$\$[\s\S]*?\$\$)\s*\$\$/g, "$1");
-    s = s.replace(/\$\$\s*(\$\$[\s\S]*?\$\$)/g, "$1");
     s = s.replace(/\${3,}/g, "$$");
 
     // 13. 保证 Markdown 标题 (### 标题) 前后有独立双换行，绝不与上一行挤在一起
