@@ -191,4 +191,16 @@ $$\\Omega_{\\rm GW}(f)$$`;
     expect(res).toContain("5.26 \\\\ 10^9");
     expect(res).not.includes("1.05\\ 3");
   });
+
+  it("必须彻底消除块级公式外层脱落的孤立方括号 [ 以及结尾重叠的 $$$$", () => {
+    const rawBoxedPayload = `[
+$$\\boxed{ k_r=10^8,\\quad k_*=5\\times10^8,\\quad w=(1/3,0.32,0.31,0.30),\\quad k_{\\rm plot}=10^8-10^9\\ {\\rm Mpc}^{-1}. }$$$$
+如果你的目标是**整个 $10^8-10^9$ 区间都得到可信结果**，那单靠 1912 不够；特别是 $k\\sim10^8$ 正好是 $w\\rightarrow1/3$ 的 transition 区，最终需要接 1904 那种时变 $w,\\Phi$ 的方法。`;
+
+    const res = normalizeChatGPTMarkdown(rawBoxedPayload);
+    expect(res.startsWith("[")).toBe(false);
+    expect(res).not.includes("$$$$");
+    expect(res).toContain("$$\\boxed{ k_r=10^8,\\quad k_*=5\\times10^8,\\quad w=(1/3,0.32,0.31,0.30),\\quad k_{\\rm plot}=10^8-10^9\\ {\\rm Mpc}^{-1}. }$$");
+    expect(res).toContain("特别是 $k\\sim10^8$ 正好是 $w\\rightarrow1/3$ 的 transition 区");
+  });
 });

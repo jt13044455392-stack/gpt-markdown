@@ -171,12 +171,48 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       return `${p1}$${p2.trim()}$ `;
     });
 
-    // 2. 修复脱落的末尾 [ \boxed{ ... }$$ 块 -> $$\boxed{ ... }$$
-    s = s.replace(/(?:\[\s*)?(\\boxed\{[\s\S]*?\})\s*(?:\$\$|\](?:\$\$)?)/g, (_m, p1) => {
-      return `\n\n$$${p1.trim()}$$\n\n`;
-    });
+    // 2. 修复孤立脱落的 [ \boxed{ ... } ] 块或 [ $$...$$ ] 块 -> $$\boxed{ ... }$$
+    s = s.replace(/(?:^|\n)\s*\[\s*\n+\s*(\$\$)/g, "\n\n$1");
+    s = s.replace(/(\$\$)\s*\n+\s*\]\s*(?:\n|$)/g, "$1\n\n");
+    s = s.replace(/(?:^|\n)\s*\[\s*(\$\$\s*\\boxed\{[\s\S]*?\}\s*\$\$)\s*(?:\]|\$\$)?/g, "\n\n$1\n\n");
 
-    // 3. 修复脱落的 [ \delta\text{-function} ] -> $\delta\text{-function}$
+    // 3. 修复脱落的花括号完整 \boxed{...} 块 (支持任意多层 \text{} 嵌套)
+    let boxedIdx = 0;
+    while ((boxedIdx = s.indexOf("\\boxed{", boxedIdx)) !== -1) {
+      if (isEscaped(s, boxedIdx)) { boxedIdx += 7; continue; }
+      let depth = 0;
+      let end = -1;
+      for (let i = boxedIdx + 6; i < s.length; i++) {
+        if (isEscaped(s, i)) continue;
+        if (s[i] === "{") depth++;
+        else if (s[i] === "}" && --depth === 0) { end = i; break; }
+      }
+      if (end !== -1) {
+        const prefix = s.slice(Math.max(0, boxedIdx - 10), boxedIdx);
+        const isDetached = /\[\s*$/.test(prefix);
+        if (isDetached) {
+          const pStart = boxedIdx - (prefix.length - prefix.lastIndexOf("["));
+          const fullBoxed = s.slice(boxedIdx, end + 1);
+          let replaceEnd = end + 1;
+          while (replaceEnd < s.length && (s[replaceEnd] === "]" || s[replaceEnd] === "$" || s[replaceEnd] === "\n" || s[replaceEnd] === " ")) {
+            replaceEnd++;
+          }
+          s = s.slice(0, pStart) + `\n\n$$${fullBoxed}$$\n\n` + s.slice(replaceEnd);
+          boxedIdx = pStart + fullBoxed.length + 8;
+          continue;
+        }
+      }
+      boxedIdx += 7;
+    }
+
+    // 4. 收缩紧贴已闭合公式的多余 $$ 符号 (如 $$\boxed{...}$$$$ -> $$\boxed{...}$$)
+    s = s.replace(/(\$\$[\s\S]*?\$\$)\s*\$\$/g, "$1");
+    s = s.replace(/\$\$\s*(\$\$[\s\S]*?\$\$)/g, "$1");
+
+    // 5. 收缩 3 个及以上连续的 $$$$ -> $$
+    s = s.replace(/\${3,}/g, "$$");
+
+    // 6. 修复脱落的 [ \delta\text{-function} ] -> $\delta\text{-function}$
     s = s.replace(/(?<!\\)\[\s*(\\?[a-zA-Z0-9_\-\{\}]*\\(?:text|mathrm)[^\]]*)\s*\]/g, (match, inner) => {
       if (!inner.includes("\n")) {
         return `$${inner.trim()}$`;
@@ -184,13 +220,18 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       return match;
     });
 
-    // 4. 修复脱落的 (w\simeq1) 独立条件等式 -> $w\simeq1$
+    // 7. 修复脱落的 (w\simeq1) 独立条件等式 -> $w\simeq1$
     s = s.replace(/(?<!\\[a-zA-Z]+)\(\s*([a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*=[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*)\s*\)/g, (match, inner) => {
       if (!/^\d+(?:[.,]\d+)?$/.test(inner.trim())) {
         return `$${inner.trim()}$`;
       }
       return match;
     });
+
+    // 8. 再次收缩紧贴闭合公式的多余 $$ 符号
+    s = s.replace(/(\$\$[\s\S]*?\$\$)\s*\$\$/g, "$1");
+    s = s.replace(/\$\$\s*(\$\$[\s\S]*?\$\$)/g, "$1");
+    s = s.replace(/\${3,}/g, "$$");
 
     return s;
   }
@@ -243,6 +284,7 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
   function compactMarkdownSpaces(text: string): string {
     if (typeof text !== "string" || !text.trim()) return text;
     let s = text;
+    s = s.replace(/\${3,}/g, "$$");
     s = s.replace(/\n{2,}\s*(\$\$[\s\S]*?\$\$)\s*\n{2,}/g, "\n$1\n");
     s = s.replace(/([^\n])\n{2,}\s*(\$\$[\s\S]*?\$\$)/g, "$1\n$2");
     s = s.replace(/(\$\$[\s\S]*?\$\$)\n{2,}\s*([^\n])/g, "$1\n$2");
