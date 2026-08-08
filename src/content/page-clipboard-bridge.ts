@@ -255,7 +255,7 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
     s = s.replace(/\${3,}/g, "$$");
 
     // 13. 保证 Markdown 标题 (### 标题) 前后有独立双换行，绝不与上一行挤在一起
-    s = s.replace(/([^\n])\s*\n?\s*(#{1,6}\s+[^\n]+)/g, "$1\n\n$2");
+    s = s.replace(/([^\n#])\s*\n?\s*(#{1,6}\s+[^\n]+)/g, "$1\n\n$2");
 
     // 14. 保证无序列表符 (* 或 -) 前后有清晰换行
     s = s.replace(/([。：:!！\)\*\w])\s*([*•\-]\s+[\u4e00-\u9fa5\w\*])/g, "$1\n* $2");
