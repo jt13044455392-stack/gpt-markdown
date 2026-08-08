@@ -171,12 +171,24 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       return `${p1}$${p2.trim()}$ `;
     });
 
-    // 2. 修复孤立脱落的 [ \boxed{ ... } ] 块或 [ $$...$$ ] 块 -> $$\boxed{ ... }$$
+    // 2. 清除公式末尾残留的孤立右方括号与标点 (如 $$\boxed{...}$$. \n ] -> $$\boxed{...}$$.)
+    s = s.replace(/(\$\$[\s\S]*?\$\$)\s*([.,，。])?\s*\n*\s*\]/g, "$1$2");
+
+    // 3. 修复孤立脱落的短 [ \n f(M) \n ] -> $f(M)$
+    s = s.replace(/(?:^|\n)\s*\[\s*\n+\s*([a-zA-Z0-9_\-\(\)\s\\^_{}=+\-*/,]{1,40}?)\s*\n+\s*\]/g, (match, inner) => {
+      const trimmed = inner.trim();
+      if (!trimmed.includes("\n") && !trimmed.includes("\\boxed") && !trimmed.includes("\\int") && !trimmed.includes("=")) {
+        return `\n\n$${trimmed}$\n\n`;
+      }
+      return `\n\n$$${trimmed}$$\n\n`;
+    });
+
+    // 4. 修复孤立脱落的 [ \boxed{ ... } ] 块或 [ $$...$$ ] 块 -> $$\boxed{ ... }$$
     s = s.replace(/(?:^|\n)\s*\[\s*\n+\s*(\$\$)/g, "\n\n$1");
     s = s.replace(/(\$\$)\s*\n+\s*\]\s*(?:\n|$)/g, "$1\n\n");
     s = s.replace(/(?:^|\n)\s*\[\s*(\$\$\s*\\boxed\{[\s\S]*?\}\s*\$\$)\s*(?:\]|\$\$)?/g, "\n\n$1\n\n");
 
-    // 3. 修复脱落的花括号完整 \boxed{...} 块 (支持任意多层 \text{} 嵌套)
+    // 5. 修复脱落的花括号完整 \boxed{...} 块 (支持任意多层 \text{} 嵌套)
     let boxedIdx = 0;
     while ((boxedIdx = s.indexOf("\\boxed{", boxedIdx)) !== -1) {
       if (isEscaped(s, boxedIdx)) { boxedIdx += 7; continue; }
@@ -205,14 +217,14 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       boxedIdx += 7;
     }
 
-    // 4. 收缩紧贴已闭合公式的多余 $$ 符号 (如 $$\boxed{...}$$$$ -> $$\boxed{...}$$)
+    // 6. 收缩紧贴已闭合公式的多余 $$ 符号 (如 $$\boxed{...}$$$$ -> $$\boxed{...}$$)
     s = s.replace(/(\$\$[\s\S]*?\$\$)\s*\$\$/g, "$1");
     s = s.replace(/\$\$\s*(\$\$[\s\S]*?\$\$)/g, "$1");
 
-    // 5. 收缩 3 个及以上连续的 $$$$ -> $$
+    // 7. 收缩 3 个及以上连续的 $$$$ -> $$
     s = s.replace(/\${3,}/g, "$$");
 
-    // 6. 修复脱落的 [ \delta\text{-function} ] -> $\delta\text{-function}$
+    // 8. 修复脱落的 [ \delta\text{-function} ] -> $\delta\text{-function}$
     s = s.replace(/(?<!\\)\[\s*(\\?[a-zA-Z0-9_\-\{\}]*\\(?:text|mathrm)[^\]]*)\s*\]/g, (match, inner) => {
       if (!inner.includes("\n")) {
         return `$${inner.trim()}$`;
@@ -220,7 +232,7 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       return match;
     });
 
-    // 7. 修复脱落的 (w\simeq1) 独立条件等式 -> $w\simeq1$
+    // 9. 修复脱落的 (w\simeq1) 独立条件等式 -> $w\simeq1$
     s = s.replace(/(?<!\\[a-zA-Z]+)\(\s*([a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*\\[a-zA-Z]+[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*=[a-zA-Z0-9_\\\^\-+=\s<>≤≥±]*)\s*\)/g, (match, inner) => {
       if (!/^\d+(?:[.,]\d+)?$/.test(inner.trim())) {
         return `$${inner.trim()}$`;
@@ -228,10 +240,14 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
       return match;
     });
 
-    // 8. 再次收缩紧贴闭合公式的多余 $$ 符号
+    // 10. 再次清除末尾孤立的 ] 和收缩多余 $$
+    s = s.replace(/(\$\$[\s\S]*?\$\$)\s*([.,，。])?\s*\n*\s*\]/g, "$1$2");
     s = s.replace(/(\$\$[\s\S]*?\$\$)\s*\$\$/g, "$1");
     s = s.replace(/\$\$\s*(\$\$[\s\S]*?\$\$)/g, "$1");
     s = s.replace(/\${3,}/g, "$$");
+
+    // 11. 保证 Markdown 标题 (### 标题) 前后有独立双换行，绝不与上一行挤在一起
+    s = s.replace(/([^\n])\s*\n?\s*(#{1,6}\s+[^\n]+)/g, "$1\n\n$2");
 
     return s;
   }

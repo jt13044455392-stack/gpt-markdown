@@ -203,4 +203,29 @@ $$\\boxed{ k_r=10^8,\\quad k_*=5\\times10^8,\\quad w=(1/3,0.32,0.31,0.30),\\quad
     expect(res).toContain("$$\\boxed{ k_r=10^8,\\quad k_*=5\\times10^8,\\quad w=(1/3,0.32,0.31,0.30),\\quad k_{\\rm plot}=10^8-10^9\\ {\\rm Mpc}^{-1}. }$$");
     expect(res).toContain("特别是 $k\\sim10^8$ 正好是 $w\\rightarrow1/3$ 的 transition 区");
   });
+
+  it("必须将孤立脱落的 [ f(M) ] 转换为行内公式 $f(M)$，并消除公式末尾残留的 ]. 语法损坏", () => {
+    const rawInput = `个 HSC 事件。那么我们的扩展质量函数产生
+
+$$\\boxed{ N_{\\rm ext} = \\int d\\ln M, f(M)N_1(M). }$$.
+]
+
+### 第一步：定义等效质量
+
+[
+f(M)
+]
+
+就变成
+$$\\boxed{(M_{\\rm eff},f_{\\rm eff})}$$.
+]`;
+
+    const res = normalizeChatGPTMarkdown(rawInput);
+    expect(res).not.includes("].");
+    expect(res).not.includes("\n]\n");
+    expect(res).toContain("$f(M)$");
+    expect(res).toContain("$$\\boxed{ N_{\\rm ext} = \\int d\\ln M, f(M)N_1(M). }$$");
+    expect(res).toContain("$$\\boxed{(M_{\\rm eff},f_{\\rm eff})}$$");
+    expect(res).toContain("### 第一步：定义等效质量");
+  });
 });
