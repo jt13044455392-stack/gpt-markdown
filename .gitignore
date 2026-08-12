@@ -16,3 +16,6 @@ Thumbs.db
 
 # 测试覆盖率
 coverage/
+
+# 打包文件
+*.zip
