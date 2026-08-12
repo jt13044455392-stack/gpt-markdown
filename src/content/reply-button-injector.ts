@@ -6,14 +6,16 @@ import { safeCopyToClipboard } from "./clipboard-utils";
 
 const BUTTON_ATTR = "data-ai-md-copy";
 
+const COPY_ICON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+const CHECK_ICON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10a37f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
 function showCopiedButtonState(button: HTMLButtonElement): void {
-  const originalLabel = "复制为 Markdown";
-  button.textContent = "已复制";
+  button.innerHTML = `${CHECK_ICON_SVG}<span>已复制</span>`;
   button.disabled = true;
   window.setTimeout(() => {
-    button.textContent = originalLabel;
+    button.innerHTML = `${COPY_ICON_SVG}<span>复制为 Markdown</span>`;
     button.disabled = false;
-  }, 1200);
+  }, 1500);
 }
 
 function createCopyButton(
@@ -25,7 +27,8 @@ function createCopyButton(
   btn.type = "button";
   btn.setAttribute(BUTTON_ATTR, "true");
   btn.className = "ai-md-copy-button";
-  btn.textContent = "复制为 Markdown";
+  btn.innerHTML = `${COPY_ICON_SVG}<span>复制为 Markdown</span>`;
+  btn.title = "复制整条回复为干净的 Markdown 格式（含完整 LaTeX 公式）";
 
   btn.addEventListener("click", async (event) => {
     event.preventDefault();
@@ -79,20 +82,28 @@ function tryInjectToSection(section: HTMLElement, adapter: ReturnType<typeof get
   const contentEl = adapter.findReplyContent(section);
   if (!contentEl) return;
 
-  const btn = createCopyButton(section, contentEl, adapter);
-
   // 优先尝试注入到操作栏
   const actionBar = adapter.findActionBar(section);
   if (actionBar) {
+    const btn = createCopyButton(section, contentEl, adapter);
     actionBar.appendChild(btn);
     return;
   }
 
-  // 兜底：插入到回复内容末尾
-  const wrapper = document.createElement("div");
-  wrapper.className = "ai-md-copy-wrapper";
-  wrapper.appendChild(btn);
-  contentEl.appendChild(wrapper);
+  // 兜底：插入到 turn 容器外层末尾（绝不可插入到 React 管理的 contentEl 内部，防止 React reconciliation 崩溃）
+  const turnEl = section.closest("[data-testid^='conversation-turn-'], [class*='conversation-turn'], article, section") ?? section;
+  if (turnEl && turnEl !== contentEl) {
+    let wrapper = turnEl.querySelector(".ai-md-copy-wrapper") as HTMLElement | null;
+    if (!wrapper) {
+      wrapper = document.createElement("div");
+      wrapper.className = "ai-md-copy-wrapper";
+      turnEl.appendChild(wrapper);
+    }
+    if (!wrapper.querySelector(`[${BUTTON_ATTR}]`)) {
+      const btn = createCopyButton(section, contentEl, adapter);
+      wrapper.appendChild(btn);
+    }
+  }
 }
 
 export function setupReplyMarkdownCopyButtons(): void {
@@ -103,18 +114,47 @@ export function setupReplyMarkdownCopyButtons(): void {
     return;
   }
 
+  let isScanning = false;
+  let scanScheduled = false;
+
   function scanAll() {
-    const replies = adapter.findAssistantReplies();
-    replies.forEach((section) => {
-      tryInjectToSection(section, adapter);
-    });
+    try {
+      const replies = adapter.findAssistantReplies();
+      replies.forEach((section) => {
+        tryInjectToSection(section, adapter);
+      });
+    } catch {
+      // 安全忽略，绝不让异常影响页面
+    }
   }
 
+  function scheduleScan() {
+    if (scanScheduled) return;
+    scanScheduled = true;
+    const runner = () => {
+      scanScheduled = false;
+      if (isScanning) return;
+      isScanning = true;
+      try {
+        scanAll();
+      } finally {
+        isScanning = false;
+      }
+    };
+
+    if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+      window.requestAnimationFrame(runner);
+    } else {
+      window.setTimeout(runner, 16);
+    }
+  }
+
+  // 首次运行
   scanAll();
 
-  // 监听 DOM 变化，自动为新增的回复注入按钮
+  // 监听 DOM 变化，带防抖地为新增回复注入按钮，绝不在微任务中密集阻塞主线程
   const observer = new MutationObserver(() => {
-    scanAll();
+    scheduleScan();
   });
 
   observer.observe(document.body, {

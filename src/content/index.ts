@@ -19,46 +19,51 @@ setupReplyMarkdownCopyButtons();
 document.addEventListener(
   "click",
   async (event) => {
-    // 如果点的是插件自己注入的按钮，不处理（按钮自己有 listener）
-    const target = event.target;
-    if (target instanceof HTMLElement && target.closest("[data-ai-md-copy]")) return;
+    try {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
 
-    const match = findMathElement(event.target);
-    if (!match) return;
+      // 如果点的是插件自己注入的按钮，不处理（按钮有专属 listener）
+      if (target.closest("[data-ai-md-copy]")) return;
 
-    event.preventDefault();
-    event.stopPropagation();
-
-    let latex = extractLatex(match.element);
-    let isDisplay = match.isDisplay;
-
-    // 如果当前节点或父容器上未写上 data-gpt-md-tex，尝试从 MathML 中的 annotation 中获取
-    if (!latex) {
-      const ann = match.element.querySelector("annotation");
-      const annText = ann?.textContent?.trim();
-      if (annText && (annText.includes("\\") || annText.includes("_") || annText.includes("^"))) {
-        latex = annText;
+      // 绝不拦截侧边栏、历史记录列表、导航链接、常规按钮或输入控件
+      if (target.closest("nav, aside, [data-testid*='sidebar'], [id*='sidebar'], header, form, a, button, input, textarea")) {
+        return;
       }
-    }
 
-    if (!latex) {
-      showToast("未定位到 LaTeX 源码", {
-        type: "error",
-        x: event.clientX,
-        y: event.clientY,
-      });
-      return;
-    }
+      const match = findMathElement(target);
+      if (!match) return;
 
-    const markdown = wrapAsMarkdownMath(latex, isDisplay);
+      let latex = extractLatex(match.element);
+      let isDisplay = match.isDisplay;
 
-    // 立即使用 safeCopyToClipboard 写入剪贴板（避免 User Activation 凭证失效）
-    const success = await safeCopyToClipboard(markdown);
-    if (success) {
-      showToast("已复制", { type: "success", x: event.clientX, y: event.clientY });
-    } else {
-      showToast("复制失败", { type: "error", x: event.clientX, y: event.clientY });
+      // 如果当前节点或父容器上未写上 data-gpt-md-tex，尝试从 MathML 中的 annotation 中获取
+      if (!latex) {
+        const ann = match.element.querySelector("annotation");
+        const annText = ann?.textContent?.trim();
+        if (annText && (annText.includes("\\") || annText.includes("_") || annText.includes("^"))) {
+          latex = annText;
+        }
+      }
+
+      // 未找到真正的 LaTeX 源码时，坚决不拦截事件，让原生点击正常生效
+      if (!latex) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const markdown = wrapAsMarkdownMath(latex, isDisplay);
+
+      // 立即使用 safeCopyToClipboard 写入剪贴板（避免 User Activation 凭证失效）
+      const success = await safeCopyToClipboard(markdown);
+      if (success) {
+        showToast("已复制", { type: "success", x: event.clientX, y: event.clientY });
+      } else {
+        showToast("复制失败", { type: "error", x: event.clientX, y: event.clientY });
+      }
+    } catch {
+      // 安全忽略
     }
   },
-  true
+  false
 );

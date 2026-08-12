@@ -4,6 +4,7 @@ import {
   cleanLatexBody,
   isInvalidFormulaBody,
   compactMarkdownSpaces,
+  isMathParenthesis,
 } from "./math-cleaner";
 
 export interface MarkdownMathExpression {
@@ -82,14 +83,86 @@ function cleanOuterParentheses(latex: string): string {
 
 function looksLikeBareParenthesisMath(text: string): boolean {
   const value = cleanOuterParentheses(text.trim());
-  if (!value) return false;
-  // 排除纯数字或小数
-  if (/^\d+(?:[.,]\d+)?$/.test(value)) return false;
-  // 包含常见 Math/TeX 特征字符（如 _ ^ { } \ = + - * / < > 等）
-  if (/[\\^_{}=+\-*/<>≤≥±∓∞∂∇∑∏∫,]/u.test(value)) return true;
-  // 基础变量/标号，如 m1, A0, x_1 等
-  if (/^[A-Za-zα-ωΑ-Ω0-9_\-\+]+$/u.test(value)) return true;
-  return false;
+  return isMathParenthesis(value);
+}
+
+function findClosingBracketForDisplayFormula(markdown: string, start: number): { endBrace: number; endPos: number } {
+  const dollarEnd = markdown.indexOf("$$", start);
+  const nlEnd = markdown.indexOf("\n]", start);
+
+  let closeBracket = -1;
+  let depth = 0;
+  for (let i = start; i < markdown.length; i++) {
+    if (isEscaped(markdown, i)) continue;
+    if (markdown.startsWith("\\left[", i)) {
+      depth++;
+      i += 5;
+      continue;
+    }
+    if (markdown.startsWith("\\right]", i)) {
+      depth = Math.max(0, depth - 1);
+      i += 6;
+      continue;
+    }
+    if (markdown[i] === "[" && !markdown.slice(Math.max(0, i - 5), i).endsWith("\\left")) {
+      depth++;
+    } else if (markdown[i] === "]" && !markdown.slice(Math.max(0, i - 6), i).endsWith("\\right")) {
+      if (depth === 0) {
+        closeBracket = i;
+        break;
+      }
+      depth--;
+    }
+  }
+
+  if (dollarEnd !== -1 && (nlEnd === -1 || dollarEnd < nlEnd) && (closeBracket === -1 || dollarEnd < closeBracket)) {
+    return { endBrace: dollarEnd, endPos: dollarEnd + 2 };
+  }
+  if (nlEnd !== -1 && (closeBracket === -1 || nlEnd < closeBracket)) {
+    return { endBrace: nlEnd, endPos: nlEnd + 2 };
+  }
+  if (closeBracket !== -1) {
+    return { endBrace: closeBracket, endPos: closeBracket + 1 };
+  }
+  return { endBrace: -1, endPos: -1 };
+}
+
+function shouldBeDisplayMath(markdown: string, startIndex: number, endIndex: number, latex: string): boolean {
+  // 1. 显式块级数学结构：始终为 display
+  if (
+    latex.includes("\\boxed") ||
+    latex.includes("\\begin{") ||
+    latex.includes("\\int") ||
+    latex.includes("\\sum") ||
+    latex.includes("\\prod") ||
+    latex.includes("\\iint") ||
+    latex.includes("\\oint") ||
+    latex.includes("\n") ||
+    latex.includes("\\\\")
+  ) {
+    return true;
+  }
+
+  // 2. 获取同行的前后文本（截取至换行符）
+  const lineStart = Math.max(0, markdown.lastIndexOf("\n", startIndex - 1) + 1);
+  const lineEndIdx = markdown.indexOf("\n", endIndex);
+  const lineEnd = lineEndIdx === -1 ? markdown.length : lineEndIdx;
+
+  const sameLinePrefix = markdown.slice(lineStart, startIndex).trim();
+  const sameLineSuffix = markdown.slice(endIndex, lineEnd).trim();
+
+  // 3. 如果在同一行内前后紧贴中文字词或连词（如 "灰色虚线 $$ Z=1 $$代表" 或 "$$ Z(k)<1 $$表示"），判定为行内公式
+  const hasSameLineChinesePrefix = /[\u4e00-\u9fa5]$/.test(sameLinePrefix);
+  const hasSameLineChineseSuffix = /^[,，.。；;]?\s*[\u4e00-\u9fa5]/.test(sameLineSuffix);
+
+  if (hasSameLineChinesePrefix || hasSameLineChineseSuffix) {
+    if (latex.length <= 120) {
+      return false;
+    }
+  }
+
+  // 默认独立成行的公式保持为 display
+  return true;
 }
 
 function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
@@ -166,29 +239,22 @@ function scanMarkdownMathExpressions(markdown: string): MarkdownMathSpan[] {
       openingLength = 2;
     } else if (markdown.startsWith("$$", index)) {
       close = "$$";
-      isDisplay = true;
       openingLength = 2;
+      const end = findUnescapedDelimiter(markdown, close, index + openingLength);
+      if (end !== -1) {
+        const rawLatex = markdown.slice(index + openingLength, end).trim();
+        if (rawLatex) {
+          isDisplay = shouldBeDisplayMath(markdown, index, end + 2, rawLatex);
+          expressions.push({ latex: rawLatex, isDisplay, start: index, end: end + 2 });
+        }
+        index = end + 2;
+        continue;
+      }
     } else if (
       markdown[index] === "[" &&
       !markdown.slice(Math.max(0, index - 5), index).endsWith("\\left")
     ) {
-      // 优先匹配包含公式的各种闭合方式 (如 \n]、]、}.$$ 或 $$)
-      let endBrace = -1;
-      let endPos = -1;
-      const dollarEnd = markdown.indexOf("$$", index + 1);
-      const nlEnd = markdown.indexOf("\n]", index + 1);
-      const closeBracket = findUnescapedDelimiter(markdown, "]", index + 1);
-
-      if (dollarEnd !== -1 && (nlEnd === -1 || dollarEnd < nlEnd) && (closeBracket === -1 || dollarEnd < closeBracket)) {
-        endBrace = dollarEnd;
-        endPos = dollarEnd + 2;
-      } else if (nlEnd !== -1) {
-        endBrace = nlEnd;
-        endPos = nlEnd + 2;
-      } else {
-        endBrace = closeBracket;
-        endPos = closeBracket !== -1 ? closeBracket + 1 : -1;
-      }
+      const { endBrace, endPos } = findClosingBracketForDisplayFormula(markdown, index + 1);
 
       if (endBrace !== -1) {
         let rawBody = markdown.slice(index + 1, endBrace);
@@ -292,9 +358,22 @@ export function normalizeChatGPTMarkdown(markdown: string): string {
 
     result += gap;
     const rawTarget = expression.isDisplay ? expression.latex : cleanOuterParens(expression.latex);
-    const clean = cleanLatexBody(rawTarget);
+    let clean = cleanLatexBody(rawTarget);
 
-    result += expression.isDisplay ? `$$${clean}$$` : `$${clean}$`;
+    if (!expression.isDisplay) {
+      // 如果行内公式末尾包含逗号/句号等标点，移到公式外部，并转为中文语境标点
+      const trailPuncMatch = clean.match(/([,，.。；;])$/);
+      if (trailPuncMatch) {
+        clean = clean.slice(0, -1).trim();
+        const punc = trailPuncMatch[1];
+        const cnPunc = punc === "," || punc === "，" ? "，" : punc === "." || punc === "。" ? "。" : punc;
+        result += `$${clean}$${cnPunc}`;
+      } else {
+        result += `$${clean}$`;
+      }
+    } else {
+      result += `$$${clean}$$`;
+    }
     cursor = expression.end;
   }
 
