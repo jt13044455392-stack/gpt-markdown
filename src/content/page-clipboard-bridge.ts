@@ -103,31 +103,29 @@ function scanAndAnnotateMathElements(root: ParentNode = document): void {
   }
 }
 
-// 仅在主聊天区内的公式点击或复制时被动提取，绝不拦截侧边栏与导航事件
-document.addEventListener(
-  "click",
-  (event) => {
-    try {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      if (target.closest("nav, aside, [data-testid*='sidebar'], [id*='sidebar'], header, dialog, form, a, button")) {
-        return;
-      }
-
-      const mathEl = target.closest(".katex, .math-display, .math-inline, .math-block, [data-math], mjx-container, math");
-      if (!mathEl) return;
-
-      const extracted = extractLatexFromReactFiber(mathEl);
-      if (extracted) {
-        mathEl.setAttribute("data-gpt-md-tex", extracted.latex);
-        mathEl.setAttribute("data-gpt-md-display", extracted.isDisplay ? "true" : "false");
-      }
-    } catch {
-      // 绝不抛出异常影响宿主页面
+// 仅在主聊天区内的公式点击或鼠标经过时被动提取，绝不拦截侧边栏与导航事件
+function handleMathTargetExtraction(target: EventTarget | null): void {
+  try {
+    if (!(target instanceof Element)) return;
+    if (target.closest("nav, aside, [data-testid*='sidebar'], [id*='sidebar'], header, dialog, form, a, button, input, textarea")) {
+      return;
     }
-  },
-  false
-);
+
+    const mathEl = target.closest(".katex, .katex-display, .math-display, .math-inline, .math-block, [data-math], mjx-container, math");
+    if (!mathEl) return;
+
+    const extracted = extractLatexFromReactFiber(mathEl);
+    if (extracted) {
+      mathEl.setAttribute("data-gpt-md-tex", extracted.latex);
+      mathEl.setAttribute("data-gpt-md-display", extracted.isDisplay ? "true" : "false");
+    }
+  } catch {
+    // 绝不抛出异常影响宿主页面
+  }
+}
+
+document.addEventListener("click", (event) => handleMathTargetExtraction(event.target), true);
+document.addEventListener("mouseover", (event) => handleMathTargetExtraction(event.target), true);
 
 const pageWindow = window as BridgeWindow;
 if (!pageWindow.__gptMarkdownClipboardBridge) {

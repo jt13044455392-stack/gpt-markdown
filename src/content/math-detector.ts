@@ -30,7 +30,7 @@ const MATH_SELECTORS = [
  *  3. mjx-container[display="true"]
  *  4. computed display 为 block 且宽度 ≥ 父容器宽度的 80%
  */
-function isDisplayMath(element: HTMLElement): boolean {
+function isDisplayMath(element: Element): boolean {
   // 策略 1：.katex-display / .math-display / .math-block
   if (
     element.classList.contains("katex-display") ||
@@ -55,16 +55,20 @@ function isDisplayMath(element: HTMLElement): boolean {
   }
 
   // 策略 3：computed style block + 接近父容器宽度
-  const style = window.getComputedStyle(element);
-  if (style.display === "block" || style.display === "flex") {
-    const parent = element.parentElement;
-    if (parent) {
-      const parentWidth = parent.getBoundingClientRect().width;
-      const selfWidth = element.getBoundingClientRect().width;
-      if (parentWidth > 0 && selfWidth / parentWidth >= 0.8) {
-        return true;
+  try {
+    const style = window.getComputedStyle(element);
+    if (style.display === "block" || style.display === "flex") {
+      const parent = element.parentElement;
+      if (parent) {
+        const parentWidth = parent.getBoundingClientRect().width;
+        const selfWidth = element.getBoundingClientRect().width;
+        if (parentWidth > 0 && selfWidth / parentWidth >= 0.8) {
+          return true;
+        }
       }
     }
+  } catch {
+    // 忽略样式读取异常
   }
 
   return false;
@@ -82,24 +86,22 @@ function isDisplayMath(element: HTMLElement): boolean {
 export function findMathElement(
   target: EventTarget | null
 ): MathElementMatch | null {
-  if (!(target instanceof HTMLElement)) return null;
+  if (!(target instanceof Element)) return null;
 
   // 从点击节点逐级向上，对每个候选选择器做 closest()
   // 收集所有命中的元素，然后选深度最浅（最外层）的那个
-  const candidates: HTMLElement[] = [];
+  const candidates: Element[] = [];
 
   for (const selector of MATH_SELECTORS) {
     const found = target.closest(selector);
-    if (found instanceof HTMLElement) {
+    if (found) {
       candidates.push(found);
     }
   }
 
   if (candidates.length === 0) return null;
 
-  // 选取 DOM 树中层级最浅（最外层）的元素。contains() 的方向比
-  // compareDocumentPosition 位标志更直观，避免把内部 .katex 误选为
-  // 外层 .katex-display，进而把块级公式误判为行内公式。
+  // 选取 DOM 树中层级最浅（最外层）的元素。
   let outermost = candidates[0];
   for (let i = 1; i < candidates.length; i++) {
     const candidate = candidates[i];
@@ -109,7 +111,7 @@ export function findMathElement(
   }
 
   return {
-    element: outermost,
+    element: outermost as HTMLElement,
     isDisplay: isDisplayMath(outermost),
   };
 }

@@ -21,15 +21,15 @@ document.addEventListener(
   async (event) => {
     try {
       const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
+      if (!(target instanceof Element)) return;
+
+      // 绝不拦截侧边栏、历史记录列表、导航链接、对话框、常规按钮或输入控件
+      if (target.closest("nav, aside, [data-testid*='sidebar'], [id*='sidebar'], header, dialog, form, a, button, input, textarea")) {
+        return;
+      }
 
       // 如果点的是插件自己注入的按钮，不处理（按钮有专属 listener）
       if (target.closest("[data-ai-md-copy]")) return;
-
-      // 绝不拦截侧边栏、历史记录列表、导航链接、常规按钮或输入控件
-      if (target.closest("nav, aside, [data-testid*='sidebar'], [id*='sidebar'], header, form, a, button, input, textarea")) {
-        return;
-      }
 
       const match = findMathElement(target);
       if (!match) return;
@@ -37,12 +37,16 @@ document.addEventListener(
       let latex = extractLatex(match.element);
       let isDisplay = match.isDisplay;
 
-      // 如果当前节点或父容器上未写上 data-gpt-md-tex，尝试从 MathML 中的 annotation 中获取
+      // 如果当前节点或父容器上未提取到，尝试从 MathML 中的 annotation 或 math alttext 获取
       if (!latex) {
         const ann = match.element.querySelector("annotation");
         const annText = ann?.textContent?.trim();
-        if (annText && (annText.includes("\\") || annText.includes("_") || annText.includes("^"))) {
+        if (annText) {
           latex = annText;
+        } else {
+          const mathTag = match.element.tagName.toLowerCase() === "math" ? match.element : match.element.querySelector("math");
+          const altText = mathTag?.getAttribute("alttext")?.trim();
+          if (altText) latex = altText;
         }
       }
 
@@ -65,5 +69,5 @@ document.addEventListener(
       // 安全忽略
     }
   },
-  false
+  true
 );

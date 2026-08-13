@@ -64,8 +64,9 @@ export function stripMathDelimiters(input: string): string {
  *
  * 找不到时返回 null。
  */
-export function extractLatex(element: HTMLElement | any): string | null {
+export function extractLatex(element: Element | any): string | null {
   if (!element || typeof element.getAttribute !== "function") return null;
+
   // ── 第零优先级：向上或在当前节点查找 data-gpt-md-tex ──────────────────────
   const texTarget = (typeof element.closest === "function" ? element.closest("[data-gpt-md-tex]") : null) ?? element;
   const gptMdTex = typeof texTarget.getAttribute === "function" ? texTarget.getAttribute("data-gpt-md-tex") : null;
@@ -74,19 +75,29 @@ export function extractLatex(element: HTMLElement | any): string | null {
   }
 
   // ── 第一优先级：data-math ──────────────────────────────────────────
-  const mathTarget = element.closest("[data-math]") ?? element;
-  const dataMath = mathTarget.getAttribute("data-math");
+  const mathTarget = (typeof element.closest === "function" ? element.closest("[data-math]") : null) ?? element;
+  const dataMath = typeof mathTarget.getAttribute === "function" ? mathTarget.getAttribute("data-math") : null;
   if (dataMath && dataMath.trim().length > 0 && dataMath !== "undefined") {
     return dataMath.trim();
   }
 
-  // ── 第二/三优先级：annotation 节点（兼容大小写与任何编码）───────────────
-  const annotations = Array.from(element.getElementsByTagName("annotation"));
+  // ── 第二优先级：annotation 节点（直接 querySelector 或 getElementsByTagName）─────
+  const container = (typeof element.closest === "function"
+    ? element.closest(".katex, .katex-display, .math-display, .math-inline, .math-block, [data-math], mjx-container, math")
+    : null) ?? element;
+
+  const annotations: Element[] = [];
+  if (typeof container.querySelectorAll === "function") {
+    container.querySelectorAll("annotation").forEach((a: Element) => annotations.push(a));
+  } else if (typeof container.getElementsByTagName === "function") {
+    Array.from(container.getElementsByTagName("annotation")).forEach((a: any) => annotations.push(a));
+  }
+
   for (const annotation of annotations) {
     const encoding = (annotation.getAttribute("encoding") ?? "").toLowerCase();
     const text = annotation.textContent?.trim();
     if (text && text.length > 0 && text !== "undefined") {
-      if (encoding.includes("tex") || encoding.includes("latex")) {
+      if (encoding.includes("tex") || encoding.includes("latex") || encoding === "application/x-tex") {
         return text;
       }
       if (looksLikeLatex(text)) {
@@ -95,15 +106,22 @@ export function extractLatex(element: HTMLElement | any): string | null {
     }
   }
 
+  // ── 第三优先级：MathML alttext 属性 ────────────────────────────────
+  const mathTag = container.tagName?.toLowerCase() === "math" ? container : container.querySelector?.("math");
+  const altText = mathTag?.getAttribute("alttext")?.trim();
+  if (altText && altText.length > 0 && altText !== "undefined") {
+    return altText;
+  }
+
   // ── 第四优先级：aria-label（内容像 LaTeX）─────────────────────────────
-  const ariaLabel = element.getAttribute("aria-label");
+  const ariaLabel = element.getAttribute("aria-label") ?? container.getAttribute("aria-label");
   if (ariaLabel && looksLikeLatex(ariaLabel) && ariaLabel !== "undefined") {
     return ariaLabel.trim();
   }
 
   // ── 第五优先级：data-latex / data-tex ─────────────────────────────────
   for (const attr of ["data-latex", "data-tex"]) {
-    const val = element.getAttribute(attr);
+    const val = element.getAttribute(attr) ?? container.getAttribute(attr);
     if (val && val.trim().length > 0 && val !== "undefined") {
       return val.trim();
     }
