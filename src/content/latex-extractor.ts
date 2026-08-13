@@ -67,23 +67,27 @@ export function stripMathDelimiters(input: string): string {
 export function extractLatex(element: Element | any): string | null {
   if (!element || typeof element.getAttribute !== "function") return null;
 
-  // ── 第零优先级：向上或在当前节点查找 data-gpt-md-tex ──────────────────────
-  const texTarget = (typeof element.closest === "function" ? element.closest("[data-gpt-md-tex]") : null) ?? element;
-  const gptMdTex = typeof texTarget.getAttribute === "function" ? texTarget.getAttribute("data-gpt-md-tex") : null;
+  // ── 第零优先级：向上、向下或在当前节点查找 data-gpt-md-tex ─────────────
+  const gptMdTex = element.getAttribute("data-gpt-md-tex")
+    ?? (typeof element.closest === "function" ? element.closest("[data-gpt-md-tex]")?.getAttribute("data-gpt-md-tex") : null)
+    ?? (typeof element.querySelector === "function" ? element.querySelector("[data-gpt-md-tex]")?.getAttribute("data-gpt-md-tex") : null);
   if (typeof gptMdTex === "string" && gptMdTex.trim().length > 0 && gptMdTex !== "undefined") {
     return gptMdTex.trim();
   }
 
-  // ── 第一优先级：data-math ──────────────────────────────────────────
-  const mathTarget = (typeof element.closest === "function" ? element.closest("[data-math]") : null) ?? element;
-  const dataMath = typeof mathTarget.getAttribute === "function" ? mathTarget.getAttribute("data-math") : null;
-  if (dataMath && dataMath.trim().length > 0 && dataMath !== "undefined") {
-    return dataMath.trim();
+  // ── 第一优先级：data-math / data-latex / data-tex 等数据属性 ──────────
+  for (const attr of ["data-math", "data-latex", "data-tex", "data-raw", "data-formula"]) {
+    const val = element.getAttribute(attr)
+      ?? (typeof element.closest === "function" ? element.closest(`[${attr}]`)?.getAttribute(attr) : null)
+      ?? (typeof element.querySelector === "function" ? element.querySelector(`[${attr}]`)?.getAttribute(attr) : null);
+    if (val && val.trim().length > 0 && val !== "undefined") {
+      return val.trim();
+    }
   }
 
-  // ── 第二优先级：annotation 节点（直接 querySelector 或 getElementsByTagName）─────
+  // ── 第二优先级：annotation 节点 ────────────────────────────────────────
   const container = (typeof element.closest === "function"
-    ? element.closest(".katex, .katex-display, .math-display, .math-inline, .math-block, [data-math], mjx-container, math")
+    ? element.closest(".katex, .katex-display, .math-display, .math-inline, .math-block, [data-math], mjx-container, math, [class*='katex'], [class*='math']")
     : null) ?? element;
 
   const annotations: Element[] = [];
@@ -106,25 +110,17 @@ export function extractLatex(element: Element | any): string | null {
     }
   }
 
-  // ── 第三优先级：MathML alttext 属性 ────────────────────────────────
-  const mathTag = container.tagName?.toLowerCase() === "math" ? container : container.querySelector?.("math");
+  // ── 第三优先级：MathML alttext 属性 ────────────────────────────────────
+  const mathTag = container.tagName?.toLowerCase() === "math" ? container : (typeof container.querySelector === "function" ? container.querySelector("math") : null);
   const altText = mathTag?.getAttribute("alttext")?.trim();
   if (altText && altText.length > 0 && altText !== "undefined") {
     return altText;
   }
 
-  // ── 第四优先级：aria-label（内容像 LaTeX）─────────────────────────────
+  // ── 第四优先级：aria-label（内容像 LaTeX）───────────────────────────────
   const ariaLabel = element.getAttribute("aria-label") ?? container.getAttribute("aria-label");
   if (ariaLabel && looksLikeLatex(ariaLabel) && ariaLabel !== "undefined") {
     return ariaLabel.trim();
-  }
-
-  // ── 第五优先级：data-latex / data-tex ─────────────────────────────────
-  for (const attr of ["data-latex", "data-tex"]) {
-    const val = element.getAttribute(attr) ?? container.getAttribute(attr);
-    if (val && val.trim().length > 0 && val !== "undefined") {
-      return val.trim();
-    }
   }
 
   return null;

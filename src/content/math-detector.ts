@@ -7,6 +7,7 @@ export type { MathElementMatch };
  * 越靠前的选择器越可能是「外层容器」，越靠后的越可能是「内部节点」。
  */
 const MATH_SELECTORS = [
+  "[data-gpt-md-tex]",
   "[data-math]",
   "[data-latex]",
   "[data-tex]",
@@ -15,9 +16,18 @@ const MATH_SELECTORS = [
   ".katex-display",
   ".math-inline",
   ".katex",
+  "[class*='katex-display']",
+  "[class*='math-display']",
+  "[class*='math-block']",
+  "[class*='katex']",
+  "[class*='math-inline']",
   ".katex-mathml",
+  ".katex-html",
   "mjx-container",
+  "mjx-math",
   "math",
+  "semantics",
+  "annotation",
   ".math",
 ] as const;
 

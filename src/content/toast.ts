@@ -33,17 +33,28 @@ export function showToast(message: string, options: ToastOptions = {}): void {
     clearTimeout(toast._hideTimer);
   }
 
-  // 更新内容和样式类
+  // 更新内容和基本内联样式
   toast.textContent = message;
   toast.className = `chatgpt-math-copier-toast chatgpt-math-copier-toast--${type}`;
+  toast.style.position = "fixed";
+  toast.style.zIndex = "2147483647";
+  toast.style.padding = "6px 12px";
+  toast.style.borderRadius = "6px";
+  toast.style.fontSize = "13px";
+  toast.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+  toast.style.lineHeight = "1.4";
+  toast.style.pointerEvents = "none";
+  toast.style.transition = "opacity 0.25s ease";
+  toast.style.backgroundColor = type === "success" ? "rgba(30, 30, 30, 0.88)" : "rgba(180, 40, 30, 0.90)";
+  toast.style.color = "#ffffff";
+  toast.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
 
   // 定位：跟随鼠标 or 右下角兜底
-  if (x !== undefined && y !== undefined) {
+  if (x !== undefined && y !== undefined && x > 0 && y > 0) {
     toast.style.left = `${x}px`;
     toast.style.top = `${y + 12}px`;
     toast.style.bottom = "auto";
     toast.style.right = "auto";
-    // 水平方向用 transform 让 toast 中心对齐点击点
     toast.style.transform = "translateX(-50%) translateY(0)";
   } else {
     toast.style.left = "auto";

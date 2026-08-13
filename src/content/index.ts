@@ -34,24 +34,37 @@ document.addEventListener(
       const match = findMathElement(target);
       if (!match) return;
 
-      let latex = extractLatex(match.element);
+      let latex = extractLatex(match.element) ?? extractLatex(target);
       let isDisplay = match.isDisplay;
 
       // 如果当前节点或父容器上未提取到，尝试从 MathML 中的 annotation 或 math alttext 获取
       if (!latex) {
-        const ann = match.element.querySelector("annotation");
+        const container = (match.element.closest(".katex, .katex-display, .math-display, .math-inline, .math-block, [data-math], mjx-container, math, [class*='katex'], [class*='math']") ?? match.element) as Element;
+        const ann = container.querySelector("annotation") ?? match.element.querySelector("annotation");
         const annText = ann?.textContent?.trim();
-        if (annText) {
+        if (annText && annText.length > 0) {
           latex = annText;
         } else {
-          const mathTag = match.element.tagName.toLowerCase() === "math" ? match.element : match.element.querySelector("math");
+          const mathTag = container.tagName.toLowerCase() === "math" ? container : (container.querySelector("math") ?? match.element.querySelector("math"));
           const altText = mathTag?.getAttribute("alttext")?.trim();
-          if (altText) latex = altText;
+          if (altText && altText.length > 0) {
+            latex = altText;
+          }
         }
       }
 
-      // 未找到真正的 LaTeX 源码时，坚决不拦截事件，让原生点击正常生效
-      if (!latex) return;
+      // 如果依然没提取到但明确命中了公式节点，尝试获取文本内容作为兜底
+      if (!latex) {
+        const rawText = match.element.textContent?.trim();
+        if (rawText && rawText.length > 0 && rawText.length < 300) {
+          latex = rawText;
+        }
+      }
+
+      if (!latex) {
+        showToast("未定位到 LaTeX 源码", { type: "error", x: event.clientX, y: event.clientY });
+        return;
+      }
 
       event.preventDefault();
       event.stopPropagation();

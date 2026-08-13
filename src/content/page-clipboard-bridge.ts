@@ -138,12 +138,14 @@ if (!pageWindow.__gptMarkdownClipboardBridge) {
 
   // ── 自动格式规范化逻辑 ──────────────────────────────────────────────
   function isEscaped(text: string, index: number): boolean {
+    if (typeof text !== "string") return false;
     let slashCount = 0;
     for (let i = index - 1; i >= 0 && text[i] === "\\"; i--) slashCount++;
     return slashCount % 2 === 1;
   }
 
   function findUnescaped(text: string, delimiter: string, from: number): number {
+    if (typeof text !== "string") return -1;
     let index = text.indexOf(delimiter, from);
     while (index !== -1 && isEscaped(text, index)) {
       index = text.indexOf(delimiter, index + delimiter.length);
